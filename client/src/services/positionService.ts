@@ -48,8 +48,23 @@ export const getAllPositions = async (
 };
 
 export const getPositionById = async (id: string): Promise<Position> => {
-  const response = await get<{ position: Position }>(`/positions/${id}`);
-  return response.position;
+  try {
+    const response = await get<Position | { position: Position }>(`/positions/${id}`);
+    
+    // Handle both response formats (direct object or nested in 'position' property)
+    if (response && typeof response === 'object') {
+      if ('position' in response) {
+        return response.position;
+      } else if ('id' in response) {
+        return response as Position;
+      }
+    }
+    
+    throw new Error('Invalid position data format received from server');
+  } catch (error) {
+    console.error(`Error fetching position ${id}:`, error);
+    throw error;
+  }
 };
 
 export const createPosition = async (
@@ -63,11 +78,26 @@ export const updatePosition = async (
   id: string,
   data: UpdatePositionData
 ): Promise<Position> => {
-  const response = await put<{ position: Position }>(
-    `/positions/${id}`,
-    data
-  );
-  return response.position;
+  try {
+    const response = await put<Position | { position: Position }>(
+      `/positions/${id}`,
+      data
+    );
+    
+    // Handle both response formats
+    if (response && typeof response === 'object') {
+      if ('position' in response) {
+        return response.position;
+      } else if ('id' in response) {
+        return response as Position;
+      }
+    }
+    
+    throw new Error('Invalid position data format received from server');
+  } catch (error) {
+    console.error(`Error updating position ${id}:`, error);
+    throw error;
+  }
 };
 
 export const deletePosition = async (id: string): Promise<void> => {

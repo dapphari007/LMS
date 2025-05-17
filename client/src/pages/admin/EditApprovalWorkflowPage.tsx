@@ -178,7 +178,24 @@ export default function EditApprovalWorkflowPage() {
             remove(fields.length - 1);
           }
         } else if (fields.length > selectedCategory.maxSteps) {
-          setError(`This category allows a maximum of ${selectedCategory.maxSteps} approval steps. Please remove ${fields.length - selectedCategory.maxSteps} step(s).`);
+          setError(
+            <div>
+              <p>This category allows a maximum of {selectedCategory.maxSteps} approval steps. You currently have {fields.length} steps.</p>
+              <button 
+                type="button"
+                className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                onClick={() => {
+                  // Remove excess steps from the end
+                  while (fields.length > selectedCategory.maxSteps) {
+                    remove(fields.length - 1);
+                  }
+                  setError(null);
+                }}
+              >
+                Remove Excess Steps
+              </button>
+            </div>
+          );
         } else {
           setError(null);
         }
@@ -210,7 +227,24 @@ export default function EditApprovalWorkflowPage() {
           setError(`This category does not allow any approval steps. Please select a different category.`);
           return;
         } else if (data.steps.length > selectedCategory.maxSteps) {
-          setError(`This category allows a maximum of ${selectedCategory.maxSteps} approval steps. Please remove ${data.steps.length - selectedCategory.maxSteps} step(s).`);
+          setError(
+            <div>
+              <p>This category allows a maximum of {selectedCategory.maxSteps} approval steps. You currently have {data.steps.length} steps.</p>
+              <button 
+                type="button"
+                className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                onClick={() => {
+                  // Remove excess steps from the end
+                  while (fields.length > selectedCategory.maxSteps) {
+                    remove(fields.length - 1);
+                  }
+                  setError(null);
+                }}
+              >
+                Remove Excess Steps
+              </button>
+            </div>
+          );
           return;
         }
       }
@@ -460,7 +494,20 @@ export default function EditApprovalWorkflowPage() {
             <button
               type="button"
               onClick={addStep}
-              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+              disabled={(() => {
+                if (!watchCategoryId) return false;
+                const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                return selectedCategory ? fields.length >= selectedCategory.maxSteps : false;
+              })()}
+              className={`px-3 py-1 rounded text-sm ${
+                (() => {
+                  if (!watchCategoryId) return "bg-green-600 hover:bg-green-700 text-white";
+                  const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                  return (selectedCategory && fields.length >= selectedCategory.maxSteps) 
+                    ? "bg-gray-400 text-white cursor-not-allowed" 
+                    : "bg-green-600 hover:bg-green-700 text-white";
+                })()
+              }`}
             >
               Add Step
             </button>

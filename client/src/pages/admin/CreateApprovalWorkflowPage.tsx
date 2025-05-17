@@ -95,7 +95,24 @@ export default function CreateApprovalWorkflowPage() {
             remove(fields.length - 1);
           }
         } else if (fields.length > selectedCategory.maxSteps) {
-          setError(`This category allows a maximum of ${selectedCategory.maxSteps} approval steps. Please remove ${fields.length - selectedCategory.maxSteps} step(s).`);
+          setError(
+            <div>
+              <p>This category allows a maximum of {selectedCategory.maxSteps} approval steps. You currently have {fields.length} steps.</p>
+              <button 
+                type="button"
+                className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                onClick={() => {
+                  // Remove excess steps from the end
+                  while (fields.length > selectedCategory.maxSteps) {
+                    remove(fields.length - 1);
+                  }
+                  setError(null);
+                }}
+              >
+                Remove Excess Steps
+              </button>
+            </div>
+          );
         } else {
           setError(null);
         }
@@ -126,7 +143,24 @@ export default function CreateApprovalWorkflowPage() {
           setError(`This category does not allow any approval steps. Please select a different category.`);
           return;
         } else if (data.steps.length > selectedCategory.maxSteps) {
-          setError(`This category allows a maximum of ${selectedCategory.maxSteps} approval steps. Please remove ${data.steps.length - selectedCategory.maxSteps} step(s).`);
+          setError(
+            <div>
+              <p>This category allows a maximum of {selectedCategory.maxSteps} approval steps. You currently have {data.steps.length} steps.</p>
+              <button 
+                type="button"
+                className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                onClick={() => {
+                  // Remove excess steps from the end
+                  while (fields.length > selectedCategory.maxSteps) {
+                    remove(fields.length - 1);
+                  }
+                  setError(null);
+                }}
+              >
+                Remove Excess Steps
+              </button>
+            </div>
+          );
           return;
         }
       }
@@ -347,23 +381,73 @@ export default function CreateApprovalWorkflowPage() {
             <div>
               <h3 className="text-lg font-semibold">Approval Steps</h3>
               {watchCategoryId && (
-                <p className="text-sm text-gray-600">
+                <div className="mt-1">
                   {(() => {
                     const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
                     if (selectedCategory) {
-                      return `Maximum ${selectedCategory.maxSteps} steps allowed for ${selectedCategory.name}`;
+                      // Determine status color based on current vs max steps
+                      const isOverLimit = fields.length > selectedCategory.maxSteps;
+                      const isAtLimit = fields.length === selectedCategory.maxSteps;
+                      const statusColor = 
+                        selectedCategory.maxSteps === 0 ? 'bg-red-100 text-red-800' :
+                        isOverLimit ? 'bg-red-100 text-red-800' :
+                        isAtLimit ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-blue-100 text-blue-800';
+                      
+                      return (
+                        <div className={`text-sm px-2 py-1 rounded inline-block ${statusColor}`}>
+                          {selectedCategory.maxSteps === 0 
+                            ? `No approval steps allowed for ${selectedCategory.name}` 
+                            : `${fields.length}/${selectedCategory.maxSteps} steps used for ${selectedCategory.name}`}
+                          
+                          {isOverLimit && (
+                            <button 
+                              type="button"
+                              className="ml-2 bg-white text-red-800 px-2 py-0.5 rounded text-xs border border-red-300"
+                              onClick={() => {
+                                // Remove excess steps from the end
+                                while (fields.length > selectedCategory.maxSteps) {
+                                  remove(fields.length - 1);
+                                }
+                                setError(null);
+                              }}
+                            >
+                              Auto-trim
+                            </button>
+                          )}
+                        </div>
+                      );
                     }
                     return null;
                   })()}
-                </p>
+                </div>
               )}
             </div>
             <button
               type="button"
               onClick={addStep}
-              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+              disabled={(() => {
+                if (!watchCategoryId) return false;
+                const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                return selectedCategory ? fields.length >= selectedCategory.maxSteps : false;
+              })()}
+              className={`px-3 py-1 rounded text-sm ${
+                (() => {
+                  if (!watchCategoryId) return "bg-green-600 hover:bg-green-700 text-white";
+                  const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                  return (selectedCategory && fields.length >= selectedCategory.maxSteps) 
+                    ? "bg-gray-400 text-white cursor-not-allowed" 
+                    : "bg-green-600 hover:bg-green-700 text-white";
+                })()
+              }`}
             >
-              Add Step
+              {(() => {
+                if (!watchCategoryId) return "Add Step";
+                const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                return (selectedCategory && fields.length >= selectedCategory.maxSteps) 
+                  ? "Max Steps Reached" 
+                  : "Add Step";
+              })()}
             </button>
           </div>
 

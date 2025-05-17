@@ -1,24 +1,64 @@
 import { AppDataSource } from "../config/database";
 import { Role } from "../models/Role";
 import logger from "../utils/logger";
+import "../models"; // Import all models to ensure they're registered
 
-export const createDefaultRoles = async (closeConnection = true) => {
+export const createDefaultRoles = async (closeConnection = true, forceRecreate = false) => {
   try {
+    // Initialize database connection if not already initialized
+    if (!AppDataSource.isInitialized) {
+      await AppDataSource.initialize();
+      logger.info("Database connection initialized");
+    }
+    
     const roleRepository = AppDataSource.getRepository(Role);
 
     // Check if roles already exist
     const existingRoles = await roleRepository.find();
-    if (existingRoles.length > 0) {
+    
+    // Clean up duplicate roles with title case names
+    const standardRoleNames = ["super_admin", "manager", "hr", "team_lead", "employee"];
+    const duplicateRoles = existingRoles.filter(role => {
+      // Check if this is a title case version of a standard role
+      const lowercaseName = role.name.toLowerCase();
+      return !standardRoleNames.includes(role.name) && 
+             standardRoleNames.some(stdRole => stdRole.toLowerCase() === lowercaseName);
+    });
+
+    if (duplicateRoles.length > 0) {
+      logger.info(`Found ${duplicateRoles.length} duplicate roles to remove`);
+      for (const role of duplicateRoles) {
+        logger.info(`Removing duplicate role: ${role.name}`);
+        await roleRepository.remove(role);
+      }
+      logger.info('Duplicate roles removed successfully');
+    }
+    
+    // If roles exist and we're not forcing recreation, skip creation
+    if (existingRoles.length > 0 && !forceRecreate) {
       logger.info("Roles already exist, skipping creation");
       if (closeConnection) {
         await AppDataSource.destroy();
       }
       return;
     }
+    
+    // If forceRecreate is true, remove existing standard roles
+    if (forceRecreate && existingRoles.length > 0) {
+      logger.info("Force recreating roles - removing existing standard roles");
+      const standardRoles = existingRoles.filter(role => 
+        standardRoleNames.includes(role.name)
+      );
+      
+      for (const role of standardRoles) {
+        logger.info(`Removing standard role: ${role.name}`);
+        await roleRepository.remove(role);
+      }
+    }
 
     const defaultRoles = [
       {
-        name: "Super Admin",
+        name: "super_admin",
         description:
           "System administrator with full access to all features and settings",
         permissions: JSON.stringify([
@@ -39,7 +79,7 @@ export const createDefaultRoles = async (closeConnection = true) => {
         ]),
       },
       {
-        name: "HR Manager",
+        name: "hr",
         description:
           "Human Resources manager with access to employee management and leave administration",
         permissions: JSON.stringify([
@@ -56,7 +96,7 @@ export const createDefaultRoles = async (closeConnection = true) => {
         ]),
       },
       {
-        name: "Department Manager",
+        name: "manager",
         description:
           "Department head with access to team management and leave approvals",
         permissions: JSON.stringify([
@@ -70,7 +110,7 @@ export const createDefaultRoles = async (closeConnection = true) => {
         ]),
       },
       {
-        name: "Team Lead",
+        name: "team_lead",
         description:
           "Team leader with access to team management and basic approvals",
         permissions: JSON.stringify([
@@ -82,7 +122,7 @@ export const createDefaultRoles = async (closeConnection = true) => {
         ]),
       },
       {
-        name: "Employee",
+        name: "employee",
         description:
           "Regular employee with access to personal leave management",
         permissions: JSON.stringify([
@@ -110,3 +150,19 @@ export const createDefaultRoles = async (closeConnection = true) => {
     throw error;
   }
 };
+
+// Run the script if executed directly
+if (require.main === module) {
+  // Check if --force flag is provided
+  const forceRecreate = process.argv.includes('--force');
+  
+  createDefaultRoles(true, forceRecreate)
+    .then(() => {
+      console.log(`Default roles ${forceRecreate ? 'recreated' : 'created'} successfully`);
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error("Error creating default roles:", error);
+      process.exit(1);
+    });
+}

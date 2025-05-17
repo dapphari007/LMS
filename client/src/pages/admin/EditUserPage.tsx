@@ -12,6 +12,7 @@ import { getAllPositions } from "../../services/positionService";
 import { useUsers } from "../../hooks";
 import { useActiveRoles } from "../../hooks/useRoles";
 import ResetPasswordModal from "../../components/users/ResetPasswordModal";
+import { getRoleDisplayName } from "../../utils/roleUtils";
 
 type FormValues = {
   firstName: string;
@@ -165,18 +166,30 @@ export default function EditUserPage() {
         // For custom roles, we need to determine the appropriate legacy role value
         // based on the role name, or use a default if no match
         const roleName = customRole.name.toLowerCase();
-        if (roleName.includes("admin") && roleName.includes("super")) {
+        // Direct mapping to UserRole enum values
+        if (roleName === "super_admin") {
           userData.role = "super_admin";
-        } else if (roleName.includes("admin")) {
-          userData.role = "admin";
-        } else if (roleName.includes("manager")) {
+        } else if (roleName === "manager") {
           userData.role = "manager";
-        } else if (roleName.includes("team") && roleName.includes("lead")) {
-          userData.role = "team_lead";
-        } else if (roleName.includes("hr")) {
+        } else if (roleName === "hr") {
           userData.role = "hr";
+        } else if (roleName === "team_lead") {
+          userData.role = "team_lead";
+        } else if (roleName === "employee") {
+          userData.role = "employee";
         } else {
-          userData.role = "employee"; // Default fallback
+          // Fallback for custom roles
+          if (roleName.includes("admin") && roleName.includes("super")) {
+            userData.role = "super_admin";
+          } else if (roleName.includes("manager")) {
+            userData.role = "manager";
+          } else if (roleName.includes("team") && roleName.includes("lead")) {
+            userData.role = "team_lead";
+          } else if (roleName.includes("hr")) {
+            userData.role = "hr";
+          } else {
+            userData.role = "employee"; // Default fallback
+          }
         }
       } else {
         // For legacy roles, set the role directly and clear roleId
@@ -343,7 +356,7 @@ export default function EditUserPage() {
               <option value="">Select a role</option>
               {roles?.map((role) => (
                 <option key={role.id} value={role.id}>
-                  {role.name}
+                  {getRoleDisplayName(role)}
                 </option>
               ))}
             </select>

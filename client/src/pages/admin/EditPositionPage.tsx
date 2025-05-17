@@ -52,8 +52,11 @@ const EditPositionPage: React.FC = () => {
           description: positionData.description || "",
           departmentId: positionData.departmentId || "",
           level: positionData.level || 1,
-          isActive: positionData.isActive,
+          isActive: positionData.isActive !== undefined ? positionData.isActive : true,
         });
+        
+        // Log the position data for debugging
+        console.log("Position data loaded:", positionData);
       } catch (err) {
         console.error("Error fetching position:", err);
         setError("Failed to load position data");
@@ -97,18 +100,27 @@ const EditPositionPage: React.FC = () => {
     setError(null);
     
     try {
+      console.log("Submitting position update with data:", data);
+      
+      // If departmentId is empty string, set it to null
+      const departmentId = data.departmentId === "" ? null : data.departmentId;
+      
       await updatePosition(id, {
         name: data.name,
         description: data.description,
-        departmentId: data.departmentId === "" ? undefined : data.departmentId,
+        departmentId: departmentId,
         level: data.level,
         isActive: data.isActive,
       });
       
+      console.log("Position updated successfully");
       navigate("/positions");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error updating position:", err);
-      setError("Failed to update position. Please try again.");
+      
+      // Extract more detailed error message if available
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message;
+      setError(`Failed to update position: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

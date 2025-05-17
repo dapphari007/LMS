@@ -154,7 +154,7 @@ export const createApprovalWorkflow = async (
   h: ResponseToolkit
 ) => {
   try {
-    const { name, minDays, maxDays, approvalLevels, isActive } =
+    const { name, minDays, maxDays, approvalLevels, isActive, categoryId } =
       request.payload as any;
 
     // Validate input
@@ -269,6 +269,11 @@ export const createApprovalWorkflow = async (
       : approvalLevels;
 
     approvalWorkflow.isActive = isActive !== undefined ? isActive : true;
+    
+    // Set categoryId if provided
+    if (categoryId) {
+      approvalWorkflow.categoryId = categoryId;
+    }
 
     // Save approval workflow to database
     const savedApprovalWorkflow = await approvalWorkflowRepository.save(
@@ -296,7 +301,7 @@ export const getAllApprovalWorkflows = async (
   h: ResponseToolkit
 ) => {
   try {
-    const { isActive } = request.query as any;
+    const { isActive, categoryId } = request.query as any;
 
     // Build query
     const approvalWorkflowRepository =
@@ -306,6 +311,10 @@ export const getAllApprovalWorkflows = async (
     if (isActive !== undefined) {
       query.isActive = isActive === "true";
     }
+    
+    if (categoryId) {
+      query.categoryId = categoryId;
+    }
 
     // Get approval workflows
     const approvalWorkflows = await approvalWorkflowRepository.find({
@@ -313,6 +322,7 @@ export const getAllApprovalWorkflows = async (
       order: {
         minDays: "ASC",
       },
+      relations: ["category"]
     });
 
     return h
@@ -343,6 +353,7 @@ export const getApprovalWorkflowById = async (
       AppDataSource.getRepository(ApprovalWorkflow);
     const approvalWorkflow = await approvalWorkflowRepository.findOne({
       where: { id },
+      relations: ["category"]
     });
 
     if (!approvalWorkflow) {
@@ -370,7 +381,7 @@ export const updateApprovalWorkflow = async (
 ) => {
   try {
     const { id } = request.params;
-    const { name, minDays, maxDays, approvalLevels, isActive } =
+    const { name, minDays, maxDays, approvalLevels, isActive, categoryId } =
       request.payload as any;
 
     // Get approval workflow
@@ -498,6 +509,11 @@ export const updateApprovalWorkflow = async (
     }
 
     if (isActive !== undefined) approvalWorkflow.isActive = isActive;
+    
+    // Update categoryId if provided
+    if (categoryId !== undefined) {
+      approvalWorkflow.categoryId = categoryId;
+    }
 
     // Save updated approval workflow
     const updatedApprovalWorkflow = await approvalWorkflowRepository.save(

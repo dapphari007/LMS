@@ -39,8 +39,23 @@ export const getAllDepartments = async (
 };
 
 export const getDepartmentById = async (id: string): Promise<Department> => {
-  const response = await get<{ department: Department }>(`/departments/${id}`);
-  return response.department;
+  try {
+    const response = await get<Department | { department: Department }>(`/departments/${id}`);
+    
+    // Handle both response formats (direct object or nested in 'department' property)
+    if (response && typeof response === 'object') {
+      if ('department' in response) {
+        return response.department;
+      } else if ('id' in response) {
+        return response as Department;
+      }
+    }
+    
+    throw new Error('Invalid department data format received from server');
+  } catch (error) {
+    console.error(`Error fetching department ${id}:`, error);
+    throw error;
+  }
 };
 
 export const createDepartment = async (
@@ -54,11 +69,26 @@ export const updateDepartment = async (
   id: string,
   data: UpdateDepartmentData
 ): Promise<Department> => {
-  const response = await put<{ department: Department }>(
-    `/departments/${id}`,
-    data
-  );
-  return response.department;
+  try {
+    const response = await put<Department | { department: Department }>(
+      `/departments/${id}`,
+      data
+    );
+    
+    // Handle both response formats
+    if (response && typeof response === 'object') {
+      if ('department' in response) {
+        return response.department;
+      } else if ('id' in response) {
+        return response as Department;
+      }
+    }
+    
+    throw new Error('Invalid department data format received from server');
+  } catch (error) {
+    console.error(`Error updating department ${id}:`, error);
+    throw error;
+  }
 };
 
 export const deleteDepartment = async (id: string): Promise<void> => {

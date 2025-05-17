@@ -6,6 +6,7 @@ import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
 import { useQuery } from "@tanstack/react-query";
+import { updateDepartment } from "../../services/departmentService";
 
 interface User {
   id: string;
@@ -38,18 +39,40 @@ const EditDepartmentPage: React.FC = () => {
   const { data: department, isLoading: isLoadingDepartment, error: queryError } = useQuery({
     queryKey: ["department", id],
     queryFn: async () => {
-      const response = await axios.get(`${config.apiUrl}/departments/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      return response.data;
+      try {
+        console.log(`Fetching department with ID: ${id}`);
+        const response = await axios.get(`${config.apiUrl}/departments/${id}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        
+        console.log("Department API response:", response.data);
+        
+        // Handle different response formats
+        if (response.data && typeof response.data === 'object') {
+          if ('id' in response.data) {
+            return response.data;
+          } else if (response.data.department && 'id' in response.data.department) {
+            return response.data.department;
+          }
+        }
+        
+        throw new Error("Invalid department data format received");
+      } catch (err: any) {
+        console.error("Error details:", err.response || err);
+        throw err;
+      }
     },
     enabled: !!id,
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Error fetching department:", error);
-      setError("Failed to load department data");
-    }
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          "Failed to load department data";
+      setError(errorMessage);
+    },
+    retry: 1, // Only retry once
   });
 
   // Fetch users to select as managers
@@ -90,22 +113,23 @@ const EditDepartmentPage: React.FC = () => {
     try {
       setIsSubmitting(true);
       setError(null);
+      
+      console.log("Submitting department update with data:", {
+        name,
+        description,
+        managerId,
+        isActive
+      });
 
-      await axios.put(
-        `${config.apiUrl}/departments/${id}`,
-        {
-          name,
-          description: description || null,
-          managerId: managerId || null,
-          isActive,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      // Use the department service instead of direct axios call
+      const updatedDepartment = await updateDepartment(id as string, {
+        name,
+        description: description || null,
+        managerId: managerId || null,
+        isActive,
+      });
 
+      console.log("Department updated successfully:", updatedDepartment);
       setSuccess("Department updated successfully");
       
       // Redirect after a short delay to show success message
@@ -114,10 +138,14 @@ const EditDepartmentPage: React.FC = () => {
       }, 1500);
     } catch (err: any) {
       console.error("Error updating department:", err);
-      setError(
-        err.response?.data?.message || 
-        "Failed to update department. Please try again."
-      );
+      
+      // Extract more detailed error message if available
+      const errorMessage = err.response?.data?.message || 
+                          err.response?.data?.error || 
+                          err.message || 
+                          "Failed to update department. Please try again.";
+      
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

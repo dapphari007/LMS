@@ -166,7 +166,7 @@ const WorkflowsPage: React.FC = () => {
               </div>
 
               <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Approval Levels</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Approval Steps</h4>
                 <div className="space-y-2">
                   {workflow.approvalLevels
                     .sort((a, b) => a.level - b.level)

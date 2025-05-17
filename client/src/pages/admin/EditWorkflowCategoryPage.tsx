@@ -169,17 +169,21 @@ export default function EditWorkflowCategoryPage() {
               {...register("maxSteps", { 
                 required: "Maximum steps is required",
                 valueAsNumber: true,
-                min: 1,
+                min: 0,
                 max: 10
               })}
               type="number"
-              min="1"
+              min="0"
               max="10"
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             />
             {errors.maxSteps && (
               <p className="text-red-500 text-xs italic">{errors.maxSteps.message}</p>
             )}
+            <p className="text-gray-500 text-xs mt-1">
+              Set the maximum number of approval steps allowed for workflows in this category. 
+              Use 0 for no approvals, 1 for single-step approval, or 2+ for multi-step approval processes.
+            </p>
           </div>
         </div>
         

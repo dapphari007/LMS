@@ -444,8 +444,8 @@ const TeamLeavesPage: React.FC = () => {
                     {request.status === "partially_approved" && request.metadata && (
                       <p className={`text-sm mt-1 ${canApproveRequest(request) ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
                         {canApproveRequest(request) 
-                          ? `This request needs your approval as L${request.metadata.currentApprovalLevel + 1}`
-                          : `This request needs L${request.metadata.currentApprovalLevel + 1} approval`}
+                          ? `This request needs your approval as Step ${request.metadata.currentApprovalLevel + 1}`
+                          : `This request needs Step ${request.metadata.currentApprovalLevel + 1} approval`}
                       </p>
                     )}
                   </div>
@@ -472,8 +472,8 @@ const TeamLeavesPage: React.FC = () => {
                               {request.status === "pending_deletion" 
                                 ? "Review Deletion" 
                                 : request.status === "partially_approved" 
-                                  ? `Approve/Reject as L${request.metadata?.currentApprovalLevel + 1}` 
-                                  : `Approve/Reject as L${getApprovalLevel()}`}
+                                  ? `Approve/Reject as Step ${request.metadata?.currentApprovalLevel + 1}` 
+                                  : `Approve/Reject as Step ${getApprovalLevel()}`}
                             </Button>
                           ) : (
                             <Button

@@ -129,9 +129,13 @@ export default function WorkflowCategoriesPage({ isTabContent = false }: Workflo
       
       <div className="bg-blue-50 border border-blue-200 p-4 rounded-md mb-6">
         <h2 className="text-lg font-medium text-blue-800 mb-2">About Workflow Categories</h2>
-        <p className="text-blue-700">
+        <p className="text-blue-700 mb-2">
           Workflow categories define the minimum and maximum days for leave requests.
           These categories can be assigned to approval workflows to automatically set the day range.
+        </p>
+        <p className="text-blue-700">
+          <strong>Max Steps:</strong> This setting limits the number of approval steps that can be created for workflows in this category. 
+          This helps maintain consistent approval processes across similar types of leave requests.
         </p>
       </div>
 
@@ -154,7 +158,7 @@ export default function WorkflowCategoriesPage({ isTabContent = false }: Workflo
                 <th className="py-3 px-4 text-left">Description</th>
                 <th className="py-3 px-4 text-left">Min Days</th>
                 <th className="py-3 px-4 text-left">Max Days</th>
-                <th className="py-3 px-4 text-left">Max Steps</th>
+                <th className="py-3 px-4 text-left">Max Approval Steps</th>
                 <th className="py-3 px-4 text-left">Status</th>
                 <th className="py-3 px-4 text-left">Created At</th>
                 <th className="py-3 px-4 text-left">Actions</th>
@@ -175,7 +179,10 @@ export default function WorkflowCategoriesPage({ isTabContent = false }: Workflo
                     {category.maxDays === 365 ? '∞' : category.maxDays}
                   </td>
                   <td className="py-3 px-4">
-                    {category.maxSteps || 3}
+                    <span className="font-medium">{category.maxSteps || 3}</span>
+                    {category.maxSteps === 0 && <span className="ml-1 text-xs text-red-600">(No steps allowed)</span>}
+                    {category.maxSteps === 1 && <span className="ml-1 text-xs text-gray-600">(Single step)</span>}
+                    {category.maxSteps > 1 && <span className="ml-1 text-xs text-gray-600">(Multi-step)</span>}
                   </td>
                   <td className="py-3 px-4">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${

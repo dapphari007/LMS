@@ -37,13 +37,20 @@ export const createPosition = async (request: Request, h: ResponseToolkit) => {
     }
 
     // Validate department if provided
+    let finalDepartmentId = departmentId;
     if (departmentId) {
-      const departmentRepository = AppDataSource.getRepository(Department);
-      const department = await departmentRepository.findOne({
-        where: { id: departmentId },
-      });
-      if (!department) {
-        return h.response({ message: "Department not found" }).code(404);
+      try {
+        const departmentRepository = AppDataSource.getRepository(Department);
+        const department = await departmentRepository.findOne({
+          where: { id: departmentId },
+        });
+        if (!department) {
+          logger.warn(`Department with ID ${departmentId} not found during position creation`);
+          finalDepartmentId = null; // Set to null if department not found
+        }
+      } catch (deptError) {
+        logger.error(`Error checking department ${departmentId}:`, deptError);
+        finalDepartmentId = null; // Set to null if error occurs
       }
     }
 
@@ -51,7 +58,7 @@ export const createPosition = async (request: Request, h: ResponseToolkit) => {
     const position = new Position();
     position.name = name;
     position.description = description || null;
-    position.departmentId = departmentId || null;
+    position.departmentId = finalDepartmentId || null;
     position.isActive = isActive !== undefined ? isActive : true;
     position.level = level !== undefined ? level : 1;
 
@@ -170,16 +177,40 @@ export const getPositionById = async (request: Request, h: ResponseToolkit) => {
 
     // Get position
     const positionRepository = AppDataSource.getRepository(Position);
-    const position = await positionRepository.findOne({
-      where: { id },
-      relations: ["department", "users"],
-    });
+    
+    try {
+      const position = await positionRepository.findOne({
+        where: { id },
+        relations: ["department", "users"],
+      });
 
-    if (!position) {
-      return h.response({ error: "Position not found" }).code(404);
+      if (!position) {
+        return h.response({ error: "Position not found" }).code(404);
+      }
+
+      // Handle case where department might be null
+      if (position.departmentId && !position.department) {
+        logger.warn(`Department with ID ${position.departmentId} not found for position ${position.id}`);
+        // Set department to null to avoid client-side errors
+        position.department = null;
+      }
+
+      return h.response(position).code(200);
+    } catch (queryError) {
+      logger.error(`Error in database query for position ${id}:`, queryError);
+      
+      // Try to get the position without relations as a fallback
+      const basicPosition = await positionRepository.findOne({
+        where: { id }
+      });
+      
+      if (basicPosition) {
+        logger.info(`Retrieved position ${id} without relations as fallback`);
+        return h.response(basicPosition).code(200);
+      } else {
+        return h.response({ error: "Position not found" }).code(404);
+      }
     }
-
-    return h.response(position).code(200);
   } catch (error) {
     logger.error("Error fetching position:", error);
     return h.response({ error: "Failed to fetch position" }).code(500);
@@ -230,20 +261,35 @@ export const updatePosition = async (request: Request, h: ResponseToolkit) => {
     }
 
     // Validate department if provided
+    let validDepartment = true;
     if (departmentId) {
-      const departmentRepository = AppDataSource.getRepository(Department);
-      const department = await departmentRepository.findOne({
-        where: { id: departmentId },
-      });
-      if (!department) {
-        return h.response({ message: "Department not found" }).code(404);
+      try {
+        const departmentRepository = AppDataSource.getRepository(Department);
+        const department = await departmentRepository.findOne({
+          where: { id: departmentId },
+        });
+        if (!department) {
+          logger.warn(`Department with ID ${departmentId} not found during position update`);
+          validDepartment = false;
+        }
+      } catch (deptError) {
+        logger.error(`Error checking department ${departmentId}:`, deptError);
+        validDepartment = false;
       }
     }
 
     // Update position fields
     if (name) position.name = name;
     if (description !== undefined) position.description = description;
-    if (departmentId !== undefined) position.departmentId = departmentId;
+    
+    // Only update departmentId if the department is valid or if it's being set to null/undefined
+    if (departmentId === null || departmentId === undefined) {
+      position.departmentId = null;
+    } else if (validDepartment) {
+      position.departmentId = departmentId;
+    }
+    // If department is invalid, keep the existing departmentId
+    
     if (isActive !== undefined) position.isActive = isActive;
     if (level !== undefined) position.level = level;
 

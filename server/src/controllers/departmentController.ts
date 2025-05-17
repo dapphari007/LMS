@@ -176,22 +176,58 @@ export const getDepartmentById = async (
     await ensureDatabaseConnection();
 
     const { id } = request.params;
+    console.log(`Getting department by ID: ${id}`);
 
     // Get department
     const departmentRepository = AppDataSource.getRepository(Department);
-    const department = await departmentRepository.findOne({
-      where: { id },
-      relations: ["manager", "users", "positions"],
-    });
+    
+    try {
+      const department = await departmentRepository.findOne({
+        where: { id },
+        relations: ["manager", "users", "positions"],
+      });
 
-    if (!department) {
-      return h.response({ error: "Department not found" }).code(404);
+      if (!department) {
+        console.log(`Department with ID ${id} not found`);
+        return h.response({ error: "Department not found" }).code(404);
+      }
+
+      // Handle case where manager might be null
+      if (department.managerId && !department.manager) {
+        console.log(`Manager with ID ${department.managerId} not found for department ${department.id}`);
+        // Set manager to null to avoid client-side errors
+        department.manager = null;
+      }
+
+      console.log(`Successfully retrieved department: ${department.name}`);
+      return h.response(department).code(200);
+    } catch (queryError) {
+      console.error(`Error in database query for department ${id}:`, queryError);
+      
+      // Try to get the department without relations as a fallback
+      try {
+        const basicDepartment = await departmentRepository.findOne({
+          where: { id }
+        });
+        
+        if (basicDepartment) {
+          console.log(`Retrieved department ${id} without relations as fallback`);
+          return h.response(basicDepartment).code(200);
+        } else {
+          return h.response({ error: "Department not found" }).code(404);
+        }
+      } catch (fallbackError) {
+        console.error(`Fallback query also failed:`, fallbackError);
+        throw fallbackError; // Re-throw to be caught by outer catch
+      }
     }
-
-    return h.response(department).code(200);
   } catch (error) {
-    logger.error("Error fetching department:", error);
-    return h.response({ error: "Failed to fetch department" }).code(500);
+    console.error("Error fetching department:", error);
+    logger.error(`Error in getDepartmentById: ${error}`);
+    return h.response({ 
+      error: "Failed to fetch department",
+      message: error instanceof Error ? error.message : String(error)
+    }).code(500);
   }
 };
 
@@ -205,21 +241,26 @@ export const updateDepartment = async (
 
     const { id } = request.params;
     const { name, description, managerId, isActive } = request.payload as any;
+    
+    console.log(`Updating department ${id} with:`, { name, description, managerId, isActive });
 
     // Get department
     const departmentRepository = AppDataSource.getRepository(Department);
     const department = await departmentRepository.findOne({ where: { id } });
 
     if (!department) {
+      console.log(`Department with ID ${id} not found during update`);
       return h.response({ error: "Department not found" }).code(404);
     }
 
     // Check if name is being changed and if it already exists
     if (name && name !== department.name) {
+      console.log(`Checking if department name "${name}" already exists`);
       const existingDepartment = await departmentRepository.findOne({
         where: { name },
       });
-      if (existingDepartment) {
+      if (existingDepartment && existingDepartment.id !== id) {
+        console.log(`Department with name "${name}" already exists`);
         return h
           .response({ message: "Department with this name already exists" })
           .code(409);
@@ -227,24 +268,44 @@ export const updateDepartment = async (
     }
 
     // Validate manager if provided
+    let validManager = true;
     if (managerId) {
-      const userRepository = AppDataSource.getRepository(User);
-      const manager = await userRepository.findOne({
-        where: { id: managerId },
-      });
-      if (!manager) {
-        return h.response({ message: "Manager not found" }).code(404);
+      try {
+        console.log(`Validating manager with ID: ${managerId}`);
+        const userRepository = AppDataSource.getRepository(User);
+        const manager = await userRepository.findOne({
+          where: { id: managerId },
+        });
+        if (!manager) {
+          console.log(`Manager with ID ${managerId} not found`);
+          validManager = false;
+        } else {
+          console.log(`Manager found: ${manager.id}`);
+        }
+      } catch (managerError) {
+        console.error(`Error checking manager ${managerId}:`, managerError);
+        validManager = false;
       }
     }
 
     // Update department fields
     if (name) department.name = name;
     if (description !== undefined) department.description = description;
-    if (managerId !== undefined) department.managerId = managerId;
+    
+    // Only update managerId if the manager is valid or if it's being set to null/undefined
+    if (managerId === null || managerId === undefined) {
+      department.managerId = null;
+    } else if (validManager) {
+      department.managerId = managerId;
+    }
+    // If manager is invalid, keep the existing managerId
+    
     if (isActive !== undefined) department.isActive = isActive;
 
     // Save updated department
+    console.log(`Saving updated department: ${department.name}`);
     const updatedDepartment = await departmentRepository.save(department);
+    console.log(`Department updated successfully: ${updatedDepartment.id}`);
 
     return h
       .response({
@@ -253,8 +314,12 @@ export const updateDepartment = async (
       })
       .code(200);
   } catch (error) {
-    logger.error("Error updating department:", error);
-    return h.response({ error: "Failed to update department" }).code(500);
+    console.error("Error updating department:", error);
+    logger.error(`Error in updateDepartment: ${error}`);
+    return h.response({ 
+      error: "Failed to update department",
+      message: error instanceof Error ? error.message : String(error)
+    }).code(500);
   }
 };
 

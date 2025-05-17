@@ -442,12 +442,12 @@ export default function ViewLeaveRequestPage() {
           {/* Approval Actions */}
           {!isOwnRequest && canApproveRequest && (
             <div className="border-t border-gray-200 pt-6 mt-6">
-              <h3 className="text-lg font-medium mb-4">Approval Actions (L{getApprovalLevel()})</h3>
+              <h3 className="text-lg font-medium mb-4">Approval Actions (Step {getApprovalLevel()})</h3>
               
               {isPartiallyApproved && leaveRequest?.metadata && (
                 <div className="bg-blue-50 border border-blue-200 p-4 rounded-md mb-4">
                   <p className="text-blue-800">
-                    This leave request has been partially approved (L{leaveRequest.metadata.currentApprovalLevel}) and requires your approval as L{leaveRequest.metadata.currentApprovalLevel + 1}.
+                    This leave request has been partially approved (Step {leaveRequest.metadata.currentApprovalLevel}) and requires your approval as Step {leaveRequest.metadata.currentApprovalLevel + 1}.
                   </p>
                 </div>
               )}
@@ -474,9 +474,9 @@ export default function ViewLeaveRequestPage() {
                 <p>Can Approve Request: {canApproveRequest ? 'Yes' : 'No'}</p>
                 {leaveRequest?.metadata && (
                   <>
-                    <p>Current Approval Level: {leaveRequest.metadata.currentApprovalLevel}</p>
-                    <p>Next Required Level: {leaveRequest.metadata.currentApprovalLevel + 1}</p>
-                    <p>Required Approval Levels: {JSON.stringify(leaveRequest.metadata.requiredApprovalLevels)}</p>
+                    <p>Current Approval Step: {leaveRequest.metadata.currentApprovalLevel}</p>
+                    <p>Next Required Step: {leaveRequest.metadata.currentApprovalLevel + 1}</p>
+                    <p>Required Approval Steps: {JSON.stringify(leaveRequest.metadata.requiredApprovalLevels)}</p>
                   </>
                 )}
               </div>

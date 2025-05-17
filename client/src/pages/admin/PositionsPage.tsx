@@ -67,9 +67,7 @@ const PositionsPage: React.FC = () => {
           typeof pos === "object" &&
           pos.id &&
           pos.name &&
-          pos.description &&
-          typeof pos.level === "number" &&
-          pos.departmentId;
+          typeof pos.level === "number";
           
         if (!isValid) {
           console.log("Filtering out invalid position:", pos);
@@ -86,7 +84,7 @@ const PositionsPage: React.FC = () => {
         
         return {
           ...pos,
-          departmentName: pos.department ? pos.department.name : 'N/A'
+          departmentName: pos.department && pos.department.name ? pos.department.name : 'N/A'
         };
       });
 
@@ -214,7 +212,7 @@ const PositionsPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500">
-                        {position.departmentName}
+                        {position.departmentName || 'No Department'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

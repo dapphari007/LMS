@@ -13,6 +13,7 @@ import Select from "../../components/ui/Select";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
 import { getErrorMessage } from "../../utils/errorUtils";
+import { getRoleDisplayName } from "../../utils/roleUtils";
 
 const CreateUserPage: React.FC = () => {
   const {
@@ -153,18 +154,30 @@ const CreateUserPage: React.FC = () => {
           // For custom roles, we need to determine the appropriate legacy role value
           // based on the role name, or use a default if no match
           const roleName = customRole.name.toLowerCase();
-          if (roleName.includes("admin") && roleName.includes("super")) {
+          // Direct mapping to UserRole enum values
+          if (roleName === "super_admin") {
             formattedData.role = "super_admin";
-          } else if (roleName.includes("admin")) {
-            formattedData.role = "admin";
-          } else if (roleName.includes("manager")) {
+          } else if (roleName === "manager") {
             formattedData.role = "manager";
-          } else if (roleName.includes("team") && roleName.includes("lead")) {
-            formattedData.role = "team_lead";
-          } else if (roleName.includes("hr")) {
+          } else if (roleName === "hr") {
             formattedData.role = "hr";
+          } else if (roleName === "team_lead") {
+            formattedData.role = "team_lead";
+          } else if (roleName === "employee") {
+            formattedData.role = "employee";
           } else {
-            formattedData.role = "employee"; // Default fallback
+            // Fallback for custom roles
+            if (roleName.includes("admin") && roleName.includes("super")) {
+              formattedData.role = "super_admin";
+            } else if (roleName.includes("manager")) {
+              formattedData.role = "manager";
+            } else if (roleName.includes("team") && roleName.includes("lead")) {
+              formattedData.role = "team_lead";
+            } else if (roleName.includes("hr")) {
+              formattedData.role = "hr";
+            } else {
+              formattedData.role = "employee"; // Default fallback
+            }
           }
         } else {
           // If it's not a custom role, it might be a legacy role
@@ -334,7 +347,7 @@ const CreateUserPage: React.FC = () => {
                   roles
                     ? roles.map(role => ({
                         value: role.id,
-                        label: role.name,
+                        label: getRoleDisplayName(role),
                       }))
                     : []
                 }

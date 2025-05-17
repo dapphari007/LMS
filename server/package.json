@@ -13,6 +13,8 @@
     "run:migrations": "ts-node src/scripts/runMigrations.ts",
     "ensure:default-users": "ts-node -e \"require('./src/utils/ensure-default-users').ensureDefaultUsers().then(() => console.log('Default users check completed')).catch((err) => { console.error(err); process.exit(1); })\"",
     "create:test-user": "ts-node src/scripts/createTestUser.ts",
+    "create:default-roles": "ts-node src/scripts/createDefaultRoles.ts",
+    "cleanup:roles": "ts-node src/scripts/cleanupRoles.ts",
     "init:approval-workflows": "ts-node src/scripts/initApprovalWorkflowsScript.ts",
     "db:reset": "ts-node src/scripts/resetDatabase.ts",
     "db:fresh": "npm run db:reset && npm run dev",

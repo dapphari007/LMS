@@ -17,6 +17,7 @@ import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
 import { getErrorMessage } from "../../utils/errorUtils";
+import { formatRoleName, getRoleDisplayName } from "../../utils/roleUtils";
 import Modal from "../../components/ui/Modal";
 
 const UsersPage: React.FC = () => {
@@ -195,14 +196,14 @@ const UsersPage: React.FC = () => {
     if (user) {
       // If user has a roleObj with name, use that (most accurate)
       if (user.roleObj && user.roleObj.name) {
-        return <Badge variant="info">{user.roleObj.name}</Badge>;
+        return <Badge variant="info">{getRoleDisplayName(user.roleObj)}</Badge>;
       }
       
       // If user has a roleId, try to find the role in our roles list
       if (user.roleId && roles && roles.length > 0) {
         const customRole = roles.find(r => r.id === user.roleId);
         if (customRole) {
-          return <Badge variant="info">{customRole.name}</Badge>;
+          return <Badge variant="info">{getRoleDisplayName(customRole)}</Badge>;
         }
       }
     }
@@ -211,30 +212,37 @@ const UsersPage: React.FC = () => {
     if (roles && roles.length > 0) {
       const customRole = roles.find(r => r.id === role);
       if (customRole) {
-        return <Badge variant="info">{customRole.name}</Badge>;
+        return <Badge variant="info">{getRoleDisplayName(customRole)}</Badge>;
       }
     }
     
-    // Otherwise, handle legacy roles
-    switch (role) {
+    // Otherwise, handle legacy roles with consistent formatting
+    if (typeof role === 'string') {
+      // Use our utility function to format the role name
+      return <Badge variant={getBadgeVariant(role)}>{formatRoleName(role)}</Badge>;
+    }
+    
+    // Fallback for unknown roles
+    return <Badge variant="default">Unknown Role</Badge>;
+  };
+  
+  // Helper function to determine badge variant based on role
+  const getBadgeVariant = (role: string): string => {
+    switch (role.toLowerCase()) {
       case "super_admin":
-        return <Badge variant="primary">Super Admin</Badge>;
+        return "primary";
       case "admin":
-        return <Badge variant="primary">Admin</Badge>;
+        return "primary";
       case "manager":
-        return <Badge variant="info">Manager</Badge>;
+        return "info";
       case "team_lead":
-        return <Badge variant="success">Team Lead</Badge>;
-      case "employee":
-        return <Badge variant="default">Employee</Badge>;
+        return "success";
       case "hr":
-        return <Badge variant="warning">HR</Badge>;
+        return "warning";
+      case "employee":
+        return "default";
       default:
-        // If it looks like a UUID, it's probably a role ID we couldn't resolve
-        if (role && role.length > 30 && role.includes("-")) {
-          return <Badge variant="default">Custom Role</Badge>;
-        }
-        return <Badge>{role}</Badge>;
+        return "default";
     }
   };
 
@@ -309,12 +317,12 @@ const UsersPage: React.FC = () => {
               <option value="all">All Roles</option>
               {/* Legacy roles for backward compatibility */}
               <optgroup label="System Roles">
-                <option value="super_admin">Super Admin</option>
-                <option value="admin">Admin</option>
-                <option value="manager">Manager</option>
-                <option value="team_lead">Team Lead</option>
-                <option value="employee">Employee</option>
-                <option value="hr">HR</option>
+                <option value="super_admin">{formatRoleName("super_admin")}</option>
+                <option value="admin">{formatRoleName("admin")}</option>
+                <option value="manager">{formatRoleName("manager")}</option>
+                <option value="team_lead">{formatRoleName("team_lead")}</option>
+                <option value="employee">{formatRoleName("employee")}</option>
+                <option value="hr">{formatRoleName("hr")}</option>
               </optgroup>
               
               {/* Custom roles from API */}
@@ -322,7 +330,7 @@ const UsersPage: React.FC = () => {
                 <optgroup label="Custom Roles">
                   {roles.map((role) => (
                     <option key={role.id} value={role.id}>
-                      {role.name}
+                      {getRoleDisplayName(role)}
                     </option>
                   ))}
                 </optgroup>
