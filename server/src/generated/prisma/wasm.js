@@ -301,7 +301,8 @@ exports.leave_request_status_enum = exports.$Enums.leave_request_status_enum = {
   approved: 'approved',
   rejected: 'rejected',
   cancelled: 'cancelled',
-  partially_approved: 'partially_approved'
+  partially_approved: 'partially_approved',
+  pending_deletion: 'pending_deletion'
 };
 
 exports.user_role_enum = exports.$Enums.user_role_enum = {

@@ -87,7 +87,8 @@ export const leave_request_status_enum: {
   approved: 'approved',
   rejected: 'rejected',
   cancelled: 'cancelled',
-  partially_approved: 'partially_approved'
+  partially_approved: 'partially_approved',
+  pending_deletion: 'pending_deletion'
 };
 
 export type leave_request_status_enum = (typeof leave_request_status_enum)[keyof typeof leave_request_status_enum]

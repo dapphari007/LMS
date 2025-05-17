@@ -4,15 +4,17 @@ import { useAuth } from "../../context/AuthContext";
 import MainLayout from "../layout/MainLayout";
 
 interface ProtectedRouteProps {
-  allowedRoles?: ("employee" | "manager" | "admin" | "hr" | "super_admin")[];
-  excludeRoles?: ("employee" | "manager" | "admin" | "hr" | "super_admin")[];
+  allowedRoles?: ("employee" | "manager" | "admin" | "hr" | "super_admin" | string)[];
+  excludeRoles?: ("employee" | "manager" | "admin" | "hr" | "super_admin" | string)[];
   children?: React.ReactNode;
+  checkCustomRoles?: boolean;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   allowedRoles,
   excludeRoles,
   children,
+  checkCustomRoles = false,
 }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
   const location = useLocation();
@@ -32,9 +34,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Check role permissions if allowedRoles is provided
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    console.log("ProtectedRoute - User role not allowed:", user.role, "Allowed roles:", allowedRoles);
-    return <Navigate to="/" replace />;
+  if (allowedRoles && user) {
+    // Check if user role is directly in the allowed roles
+    const isDirectlyAllowed = allowedRoles.includes(user.role);
+    
+    // Check if user has a custom role with admin permissions
+    const hasCustomAdminRole = checkCustomRoles && 
+      user.roleObj && 
+      user.roleObj.permissions && 
+      user.roleObj.permissions.includes('admin');
+    
+    if (!isDirectlyAllowed && !hasCustomAdminRole) {
+      console.log("ProtectedRoute - User role not allowed:", user.role, "Allowed roles:", allowedRoles);
+      return <Navigate to="/" replace />;
+    }
   }
 
   // Check excluded roles

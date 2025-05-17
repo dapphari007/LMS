@@ -136,7 +136,7 @@ const router = createBrowserRouter([
   // Manager and Team Lead Routes
   {
     element: (
-      <ProtectedRoute allowedRoles={["manager", "admin", "team_lead", "hr", "super_admin"]} />
+      <ProtectedRoute allowedRoles={["manager", "admin", "team_lead", "hr", "super_admin"]} checkCustomRoles={true} />
     ),
     children: [
       {

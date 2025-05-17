@@ -64,9 +64,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       icon: ClipboardDocumentListIcon,
     },
   ];
+  
+  // Check if user has a custom role with admin permissions
+  const hasCustomAdminRole = user?.roleObj?.permissions?.includes('admin');
 
   const adminNavigation = [
     { name: "Users", href: "/users", icon: UserGroupIcon },
+    { name: "Team Leaves", href: "/team-leaves", icon: UserGroupIcon },
     {
       name: "Leave Types",
       href: "/leave-types",
@@ -260,7 +264,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                       </Link>
                     ))}
 
-                  {user?.role === "admin" &&
+                  {(user?.role === "admin" || hasCustomAdminRole) &&
                     adminNavigation.map((item) => (
                       <Link
                         key={item.name}
@@ -439,7 +443,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 </>
               )}
 
-              {user?.role === "admin" && (
+              {(user?.role === "admin" || hasCustomAdminRole) && (
                 <>
                   <div className="mt-8 mb-2 px-3">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">

@@ -208,6 +208,7 @@ enum leave_request_status_enum {
   rejected
   cancelled
   partially_approved
+  pending_deletion
 }
 
 enum leave_request_type_enum {

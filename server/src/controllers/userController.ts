@@ -307,6 +307,7 @@ export const updateUser = async (request: Request, h: ResponseToolkit) => {
       phoneNumber,
       address,
       role,
+      roleId,
       level,
       isActive,
       managerId,
@@ -409,6 +410,7 @@ export const updateUser = async (request: Request, h: ResponseToolkit) => {
     if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
     if (address !== undefined) user.address = address;
     if (role) user.role = role;
+    if (roleId !== undefined) user.roleId = roleId;
     if (level) user.level = level;
     if (isActive !== undefined) user.isActive = isActive;
     if (managerId !== undefined) user.managerId = managerId;

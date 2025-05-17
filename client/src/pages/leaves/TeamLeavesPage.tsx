@@ -41,13 +41,16 @@ const TeamLeavesPage: React.FC = () => {
   const isHR = userRole === "hr";
   const isSuperAdmin = userRole === "super_admin";
   const isAdmin = userRole === "admin";
+  
+  // Check for custom admin roles
+  const hasCustomAdminRole = user?.roleObj?.permissions?.includes('admin');
 
   // Determine approval level based on role
   const getApprovalLevel = () => {
     if (isTeamLead) return 1;
     if (isManager) return 2;
     if (isHR) return 3;
-    if (isAdmin) return 4;
+    if (isAdmin || hasCustomAdminRole) return 4;
     if (isSuperAdmin) return 5;
     return 0;
   };
@@ -60,7 +63,7 @@ const TeamLeavesPage: React.FC = () => {
     if (userApprovalLevel === 0) return false;
     
     // Super admins and admins can approve any request
-    if (isSuperAdmin || isAdmin) return true;
+    if (isSuperAdmin || isAdmin || hasCustomAdminRole) return true;
     
     // For pending requests, only L1 approvers can approve
     if (request.status === "pending") {
