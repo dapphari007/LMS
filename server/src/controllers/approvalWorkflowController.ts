@@ -4,6 +4,42 @@ import { ApprovalWorkflow, UserRole } from "../models";
 import logger from "../utils/logger";
 import { LessThanOrEqual, MoreThanOrEqual, Not } from "typeorm";
 
+// Helper function to normalize role values to match UserRole enum values
+const normalizeRole = (role: string): string => {
+  if (typeof role !== 'string') return role;
+  
+  // If it's a UUID or other non-role string, return as is
+  if (role.length > 10) return role;
+  
+  // Handle the case where the input is the enum key (e.g., "TEAM_LEAD")
+  // We need to convert it to the enum value (e.g., "team_lead")
+  if (role === role.toUpperCase()) {
+    // It's likely an uppercase enum key
+    const enumKey = Object.keys(UserRole).find(
+      key => key.toUpperCase() === role.toUpperCase()
+    );
+    if (enumKey) {
+      return UserRole[enumKey as keyof typeof UserRole];
+    }
+  }
+  
+  // Check if it's already a valid enum value
+  const enumValues = Object.values(UserRole);
+  if (enumValues.includes(role as UserRole)) {
+    return role;
+  }
+  
+  // Try to find a matching enum value (case-insensitive)
+  const matchingValue = enumValues.find(
+    value => value.toLowerCase() === role.toLowerCase()
+  );
+  if (matchingValue) {
+    return matchingValue;
+  }
+  
+  return role; // Return original if no match found
+};
+
 // Default approval workflows configuration
 export const DEFAULT_APPROVAL_WORKFLOWS = [
   {
@@ -177,7 +213,14 @@ export const createApprovalWorkflow = async (
       }
 
       for (const role of level.roles) {
-        if (!Object.values(UserRole).includes(role)) {
+        // Check if the role matches any UserRole value (case-insensitive)
+        const validRoles = Object.values(UserRole);
+        const isValidRole = validRoles.some(validRole => 
+          validRole.toLowerCase() === role.toLowerCase() || 
+          validRole === role
+        );
+        
+        if (!isValidRole) {
           return h.response({ message: `Invalid role: ${role}` }).code(400);
         }
       }
@@ -214,7 +257,14 @@ export const createApprovalWorkflow = async (
     approvalWorkflow.approvalLevels = Array.isArray(approvalLevels)
       ? approvalLevels.map((level) => ({
           level: level.level,
-          roles: Array.isArray(level.roles) ? level.roles : [level.roles],
+          roles: Array.isArray(level.roles) 
+            ? level.roles.map(role => normalizeRole(role))
+            : [normalizeRole(level.roles)],
+          approverType: level.approverType,
+          fallbackRoles: Array.isArray(level.fallbackRoles)
+            ? level.fallbackRoles.map(role => normalizeRole(role))
+            : level.fallbackRoles ? [normalizeRole(level.fallbackRoles)] : undefined,
+          departmentSpecific: level.departmentSpecific
         }))
       : approvalLevels;
 
@@ -363,7 +413,14 @@ export const updateApprovalWorkflow = async (
             continue; // Likely a UUID, skip validation
           }
           
-          if (!Object.values(UserRole).includes(role)) {
+          // Check if the role matches any UserRole value (case-insensitive)
+          const validRoles = Object.values(UserRole);
+          const isValidRole = validRoles.some(validRole => 
+            validRole.toLowerCase() === role.toLowerCase() || 
+            validRole === role
+          );
+          
+          if (!isValidRole) {
             return h.response({ message: `Invalid role: ${role}` }).code(400);
           }
         }
@@ -428,7 +485,14 @@ export const updateApprovalWorkflow = async (
       approvalWorkflow.approvalLevels = Array.isArray(approvalLevels)
         ? approvalLevels.map((level) => ({
             level: level.level,
-            roles: Array.isArray(level.roles) ? level.roles : [level.roles],
+            roles: Array.isArray(level.roles) 
+              ? level.roles.map(role => normalizeRole(role))
+              : [normalizeRole(level.roles)],
+            approverType: level.approverType,
+            fallbackRoles: Array.isArray(level.fallbackRoles)
+              ? level.fallbackRoles.map(role => normalizeRole(role))
+              : level.fallbackRoles ? [normalizeRole(level.fallbackRoles)] : undefined,
+            departmentSpecific: level.departmentSpecific
           }))
         : approvalLevels;
     }

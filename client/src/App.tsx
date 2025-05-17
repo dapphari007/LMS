@@ -45,6 +45,13 @@ import LeaveBalancesPage from "./pages/admin/LeaveBalancesPage";
 import ApprovalWorkflowsPage from "./pages/admin/ApprovalWorkflowsPage";
 import CreateApprovalWorkflowPage from "./pages/admin/CreateApprovalWorkflowPage";
 import EditApprovalWorkflowPage from "./pages/admin/EditApprovalWorkflowPage";
+import WorkflowCategoriesPage from "./pages/admin/WorkflowCategoriesPage";
+import CreateWorkflowCategoryPage from "./pages/admin/CreateWorkflowCategoryPage";
+import EditWorkflowCategoryPage from "./pages/admin/EditWorkflowCategoryPage";
+import ApproverTypesPage from "./pages/admin/ApproverTypesPage";
+import CreateApproverTypePage from "./pages/admin/CreateApproverTypePage";
+import EditApproverTypePage from "./pages/admin/EditApproverTypePage";
+import ApprovalManagementPage from "./pages/admin/ApprovalManagementPage";
 import SuperAdminDashboardPage from "./pages/admin/SuperAdminDashboardPage";
 import RolesPage from "./pages/admin/RolesPage";
 import CreateRolePage from "./pages/admin/CreateRolePage";
@@ -238,8 +245,12 @@ const router = createBrowserRouter([
         element: <LeaveBalancesPage />,
       },
       {
+        path: "/approval-management",
+        element: <ApprovalManagementPage />,
+      },
+      {
         path: "/approval-workflows",
-        element: <ApprovalWorkflowsPage />,
+        element: <Navigate to="/approval-management" replace />,
       },
       {
         path: "/approval-workflows/create",
@@ -284,6 +295,30 @@ const router = createBrowserRouter([
       {
         path: "/positions/edit/:id",
         element: <EditPositionPage />,
+      },
+      {
+        path: "/workflow-categories",
+        element: <Navigate to="/approval-management?tab=categories" replace />,
+      },
+      {
+        path: "/workflow-categories/create",
+        element: <CreateWorkflowCategoryPage />,
+      },
+      {
+        path: "/workflow-categories/edit/:id",
+        element: <EditWorkflowCategoryPage />,
+      },
+      {
+        path: "/approver-types",
+        element: <Navigate to="/approval-management?tab=approverTypes" replace />,
+      },
+      {
+        path: "/approver-types/create",
+        element: <CreateApproverTypePage />,
+      },
+      {
+        path: "/approver-types/edit/:id",
+        element: <EditApproverTypePage />,
       },
     ],
   },

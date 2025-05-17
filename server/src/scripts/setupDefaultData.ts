@@ -2,6 +2,7 @@ import { AppDataSource } from "../config/database";
 import { createDefaultDepartments } from "./createDefaultDepartments";
 import { createDefaultPositions } from "./createDefaultPositions";
 import { createDefaultRoles } from "./createDefaultRoles";
+import { createDefaultWorkflowCategories } from "./createDefaultWorkflowCategories";
 import logger from "../utils/logger";
 
 const checkTableExists = async (tableName: string): Promise<boolean> => {
@@ -29,6 +30,7 @@ export const setupDefaultData = async () => {
     const departmentsTableExists = await checkTableExists("departments");
     const positionsTableExists = await checkTableExists("positions");
     const rolesTableExists = await checkTableExists("roles");
+    const workflowCategoriesTableExists = await checkTableExists("workflow_categories");
 
     if (!departmentsTableExists) {
       logger.warn(
@@ -56,6 +58,16 @@ export const setupDefaultData = async () => {
       // Create roles
       await createDefaultRoles(false);
       logger.info("Default roles created");
+    }
+
+    if (!workflowCategoriesTableExists) {
+      logger.warn(
+        "Workflow categories table does not exist. Skipping workflow categories creation."
+      );
+    } else {
+      // Create workflow categories
+      await createDefaultWorkflowCategories(false);
+      logger.info("Default workflow categories created");
     }
 
     logger.info("Default data setup completed successfully");

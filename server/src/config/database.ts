@@ -15,6 +15,7 @@ export const AppDataSource = new DataSource({
   entities: [path.join(__dirname, "../models/**/*.{ts,js}")],
   migrations: [path.join(__dirname, "../migrations/**/*.{ts,js}")],
   subscribers: [path.join(__dirname, "../subscribers/**/*.{ts,js}")],
+  cache: false, // Disable metadata caching
 });
 
 export const initializeDatabase = async (): Promise<void> => {

@@ -79,8 +79,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       icon: ClipboardDocumentListIcon,
     },
     {
-      name: "Approval Workflows",
-      href: "/approval-workflows",
+      name: "Approval Management",
+      href: "/approval-management",
       icon: UserGroupIcon,
     },
   ];
@@ -101,8 +101,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       icon: ClipboardDocumentListIcon,
     },
     {
-      name: "Approval Workflows",
-      href: "/approval-workflows",
+      name: "Approval Management",
+      href: "/approval-management",
       icon: UserGroupIcon,
     },
     { name: "Roles", href: "/roles", icon: UserGroupIcon },
@@ -116,7 +116,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   const isActive = (path: string) => {
-    return location.pathname === path;
+    // Basic path matching
+    if (location.pathname === path) return true;
+    
+    // Special case for approval management tabs
+    if (path === "/approval-management") {
+      return location.pathname === "/approval-management" || 
+             location.pathname === "/approval-workflows" ||
+             location.pathname === "/workflow-categories" ||
+             location.pathname === "/approver-types";
+    }
+    
+    return false;
   };
 
   return (

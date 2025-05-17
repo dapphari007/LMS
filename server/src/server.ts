@@ -48,8 +48,44 @@ const init = async () => {
     }
 
     // Setup default data
-    await setupDefaultData();
-    logger.info("Default data setup completed");
+    try {
+      // Ensure the maxSteps column exists in the workflow_categories table
+      const queryRunner = AppDataSource.createQueryRunner();
+      await queryRunner.connect();
+      
+      try {
+        // Check if the column already exists
+        const table = await queryRunner.getTable("workflow_categories");
+        const maxStepsColumn = table?.findColumnByName("maxSteps");
+        
+        if (!maxStepsColumn) {
+          logger.info("Adding maxSteps column to workflow_categories table");
+          
+          // Add maxSteps column with default value 3
+          await queryRunner.query(`ALTER TABLE "workflow_categories" ADD COLUMN IF NOT EXISTS "maxSteps" integer NOT NULL DEFAULT 3`);
+          
+          // Update existing categories with specific maxSteps values
+          await queryRunner.query(`UPDATE "workflow_categories" SET "maxSteps" = 2 WHERE "name" = 'Short Leave'`);
+          await queryRunner.query(`UPDATE "workflow_categories" SET "maxSteps" = 3 WHERE "name" = 'Medium Leave'`);
+          await queryRunner.query(`UPDATE "workflow_categories" SET "maxSteps" = 4 WHERE "name" = 'Long Leave'`);
+          await queryRunner.query(`UPDATE "workflow_categories" SET "maxSteps" = 5 WHERE "name" = 'Extended Leave'`);
+          await queryRunner.query(`UPDATE "workflow_categories" SET "maxSteps" = 6 WHERE "name" = 'Long-Term Leave'`);
+          
+          logger.info("Successfully added maxSteps column to workflow_categories table");
+        } else {
+          logger.info("maxSteps column already exists in workflow_categories table");
+        }
+      } finally {
+        // Release the query runner
+        await queryRunner.release();
+      }
+      
+      await setupDefaultData();
+      logger.info("Default data setup completed");
+    } catch (error) {
+      logger.error("Error setting up default data:", error);
+      throw error;
+    }
 
     // Create Hapi server
     const server = Hapi.server({

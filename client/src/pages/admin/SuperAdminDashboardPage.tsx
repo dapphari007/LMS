@@ -218,7 +218,7 @@ const SuperAdminDashboardPage: React.FC = () => {
 
       <div className="bg-white p-6 rounded-lg shadow">
         <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <Link to="/leave-types">
             <Button fullWidth variant="outline">
               Manage Leave Types
@@ -229,9 +229,26 @@ const SuperAdminDashboardPage: React.FC = () => {
               Manage Holidays
             </Button>
           </Link>
-          <Link to="/approval-workflows">
+          <Link to="/approval-management">
             <Button fullWidth variant="outline">
               Approval Workflows
+            </Button>
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link to="/workflow-categories">
+            <Button fullWidth variant="outline">
+              Workflow Categories
+            </Button>
+          </Link>
+          <Link to="/approver-types">
+            <Button fullWidth variant="outline">
+              Approver Types
+            </Button>
+          </Link>
+          <Link to="/leave-balances">
+            <Button fullWidth variant="outline">
+              Leave Balances
             </Button>
           </Link>
         </div>

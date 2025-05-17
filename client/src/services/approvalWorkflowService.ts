@@ -1,4 +1,5 @@
 import api from "./api";
+import { WorkflowCategory } from "./workflowCategoryService";
 
 export interface ApprovalWorkflow {
   id: string;
@@ -15,19 +16,29 @@ export interface ApprovalWorkflow {
     required?: boolean;
   }[];
   isActive: boolean;
+  categoryId?: string;
+  category?: WorkflowCategory;
   createdAt: string;
   updatedAt: string;
 }
 
 export const createApprovalWorkflow = async (
-  workflowData: Omit<ApprovalWorkflow, "id" | "createdAt" | "updatedAt">
+  workflowData: Omit<ApprovalWorkflow, "id" | "createdAt" | "updatedAt" | "category">
 ) => {
   const response = await api.post("/approval-workflows", workflowData);
   return response.data;
 };
 
-export const getAllApprovalWorkflows = async () => {
-  const response = await api.get("/approval-workflows");
+export const getAllApprovalWorkflows = async (filters?: { isActive?: boolean, categoryId?: string }) => {
+  const params = new URLSearchParams();
+  if (filters?.isActive !== undefined) {
+    params.append("isActive", String(filters.isActive));
+  }
+  if (filters?.categoryId) {
+    params.append("categoryId", filters.categoryId);
+  }
+  
+  const response = await api.get(`/approval-workflows${params.toString() ? `?${params.toString()}` : ''}`);
   return response.data.approvalWorkflows || [];
 };
 
@@ -39,7 +50,7 @@ export const getApprovalWorkflowById = async (id: string) => {
 export const updateApprovalWorkflow = async (
   id: string,
   workflowData: Partial<
-    Omit<ApprovalWorkflow, "id" | "createdAt" | "updatedAt">
+    Omit<ApprovalWorkflow, "id" | "createdAt" | "updatedAt" | "category">
   >
 ) => {
   console.log(`Updating workflow ${id} with data:`, workflowData);

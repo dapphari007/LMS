@@ -1,19 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createApprovalWorkflow } from "../../services/approvalWorkflowService";
 import { getAllUsers } from "../../services/userService";
+import { getAllWorkflowCategories } from "../../services/workflowCategoryService";
+import { getAllApproverTypes } from "../../services/approverTypeService";
 
 type FormValues = {
   name: string;
   description: string;
+  categoryId: string;
   minDays: number;
   maxDays: number;
   isActive: boolean;
   steps: {
     order: number;
-    approverType: "team_lead" | "manager" | "hr" | "department_head" | "specific_user";
+    approverType: string;
     approverId?: string;
     required: boolean;
   }[];
@@ -22,10 +25,21 @@ type FormValues = {
 export default function CreateApprovalWorkflowPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  const [useCustomDays, setUseCustomDays] = useState(false);
 
   const { data: users = [] } = useQuery({
     queryKey: ["users"],
     queryFn: getAllUsers,
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["workflowCategories"],
+    queryFn: () => getAllWorkflowCategories({ isActive: true }),
+  });
+
+  const { data: approverTypes = [] } = useQuery({
+    queryKey: ["approverTypes"],
+    queryFn: () => getAllApproverTypes({ isActive: true }),
   });
 
   const {
@@ -33,15 +47,17 @@ export default function CreateApprovalWorkflowPage() {
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
       name: "",
       description: "",
+      categoryId: "",
       minDays: 0.5,
       maxDays: 2,
       isActive: true,
-      steps: [{ order: 1, approverType: "team_lead", required: true }],
+      steps: [],
     },
   });
 
@@ -51,11 +67,46 @@ export default function CreateApprovalWorkflowPage() {
   });
 
   const watchSteps = watch("steps");
+  const watchCategoryId = watch("categoryId");
+
+  // Update min/max days when category changes
+  // Add a default step when the component mounts
+  useEffect(() => {
+    if (fields.length === 0) {
+      addStep();
+    }
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (watchCategoryId) {
+      const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+      if (selectedCategory) {
+        // Update min/max days if not using custom days
+        if (!useCustomDays) {
+          setValue("minDays", selectedCategory.minDays);
+          setValue("maxDays", selectedCategory.maxDays);
+        }
+        
+        // Check if current steps exceed the maximum allowed
+        if (selectedCategory.maxSteps === 0) {
+          setError(`This category does not allow any approval steps. Please select a different category.`);
+          // Remove all steps if the category doesn't allow any
+          while (fields.length > 0) {
+            remove(fields.length - 1);
+          }
+        } else if (fields.length > selectedCategory.maxSteps) {
+          setError(`This category allows a maximum of ${selectedCategory.maxSteps} approval steps. Please remove ${fields.length - selectedCategory.maxSteps} step(s).`);
+        } else {
+          setError(null);
+        }
+      }
+    }
+  }, [watchCategoryId, categories, setValue, useCustomDays, fields.length, remove]);
 
   const createMutation = useMutation({
     mutationFn: createApprovalWorkflow,
     onSuccess: () => {
-      navigate("/approval-workflows");
+      navigate("/approval-management");
     },
     onError: (err: any) => {
       setError(
@@ -66,6 +117,20 @@ export default function CreateApprovalWorkflowPage() {
 
   const onSubmit = (data: FormValues) => {
     console.log("Form data submitted:", data);
+    
+    // Check if we've exceeded the maximum steps for the selected category
+    if (data.categoryId) {
+      const selectedCategory = categories.find(cat => cat.id === data.categoryId);
+      if (selectedCategory) {
+        if (selectedCategory.maxSteps === 0) {
+          setError(`This category does not allow any approval steps. Please select a different category.`);
+          return;
+        } else if (data.steps.length > selectedCategory.maxSteps) {
+          setError(`This category allows a maximum of ${selectedCategory.maxSteps} approval steps. Please remove ${data.steps.length - selectedCategory.maxSteps} step(s).`);
+          return;
+        }
+      }
+    }
     
     // Ensure steps are properly ordered
     const formattedSteps = data.steps.map((step, index) => ({
@@ -119,6 +184,7 @@ export default function CreateApprovalWorkflowPage() {
     createMutation.mutate({
       name: data.name,
       description: data.description,
+      categoryId: data.categoryId || undefined,
       minDays: data.minDays,
       maxDays: data.maxDays,
       approvalLevels: approvalLevels,
@@ -127,9 +193,27 @@ export default function CreateApprovalWorkflowPage() {
   };
 
   const addStep = () => {
+    // Check if we've reached the maximum number of steps for the selected category
+    const selectedCategory = watchCategoryId ? categories.find(cat => cat.id === watchCategoryId) : null;
+    const maxSteps = selectedCategory?.maxSteps ?? 10; // Default to 10 if no category selected
+    
+    // If maxSteps is 0, don't allow adding any steps
+    if (maxSteps === 0) {
+      setError(`This category does not allow any approval steps. Please select a different category.`);
+      return;
+    }
+    
+    if (fields.length >= maxSteps) {
+      setError(`Maximum of ${maxSteps} steps allowed for this workflow category`);
+      return;
+    }
+    
+    // Use the first approver type code if available, otherwise default to "team_lead"
+    const defaultApproverType = approverTypes.length > 0 ? approverTypes[0].code : "team_lead";
+    
     append({
       order: fields.length + 1,
-      approverType: "team_lead",
+      approverType: defaultApproverType,
       required: true,
     });
   };
@@ -173,7 +257,37 @@ export default function CreateApprovalWorkflowPage() {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="mb-6">
+          <label className="block text-gray-700 text-sm font-bold mb-2">
+            Workflow Category
+          </label>
+          <select
+            {...register("categoryId")}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          >
+            <option value="">Select a category (optional)</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name} ({category.minDays} - {category.maxDays} days, max {category.maxSteps} steps)
+              </option>
+            ))}
+          </select>
+          <div className="mt-2">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={useCustomDays}
+                onChange={(e) => setUseCustomDays(e.target.checked)}
+                className="mr-2 h-5 w-5"
+              />
+              <span className="text-gray-700 text-sm">
+                Use custom day range (override category)
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 ${!useCustomDays && watchCategoryId ? 'opacity-50' : ''}`}>
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2">
               Minimum Days *
@@ -186,6 +300,7 @@ export default function CreateApprovalWorkflowPage() {
               type="number"
               step="0.5"
               min="0.5"
+              disabled={!useCustomDays && !!watchCategoryId}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             />
             {errors.minDays && (
@@ -205,6 +320,7 @@ export default function CreateApprovalWorkflowPage() {
               type="number"
               step="0.5"
               min="0.5"
+              disabled={!useCustomDays && !!watchCategoryId}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             />
             {errors.maxDays && (
@@ -228,7 +344,20 @@ export default function CreateApprovalWorkflowPage() {
 
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Approval Steps</h3>
+            <div>
+              <h3 className="text-lg font-semibold">Approval Steps</h3>
+              {watchCategoryId && (
+                <p className="text-sm text-gray-600">
+                  {(() => {
+                    const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                    if (selectedCategory) {
+                      return `Maximum ${selectedCategory.maxSteps} steps allowed for ${selectedCategory.name}`;
+                    }
+                    return null;
+                  })()}
+                </p>
+              )}
+            </div>
             <button
               type="button"
               onClick={addStep}
@@ -267,11 +396,21 @@ export default function CreateApprovalWorkflowPage() {
                     })}
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                   >
-                    <option value="team_lead">Team Lead (L-1)</option>
-                    <option value="manager">Direct Manager</option>
-                    <option value="hr">HR Department</option>
-                    <option value="department_head">Department Head</option>
-                    <option value="specific_user">Specific User</option>
+                    {approverTypes.length > 0 ? (
+                      approverTypes.map((type) => (
+                        <option key={type.id} value={type.code}>
+                          {type.name}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="team_lead">Team Lead (L-1)</option>
+                        <option value="manager">Direct Manager</option>
+                        <option value="hr">HR Department</option>
+                        <option value="department_head">Department Head</option>
+                        <option value="specific_user">Specific User</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -335,7 +474,7 @@ export default function CreateApprovalWorkflowPage() {
         <div className="flex justify-end space-x-4">
           <button
             type="button"
-            onClick={() => navigate("/approval-workflows")}
+            onClick={() => navigate("/approval-management")}
             className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100"
           >
             Cancel
