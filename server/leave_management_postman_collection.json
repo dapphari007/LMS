@@ -1,0 +1,1508 @@
+{
+    "info": {
+        "name": "Leave Management System API",
+        "description": "A collection of API endpoints for the Leave Management System",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Health Check",
+            "item": [
+                {
+                    "name": "Health Check",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/health",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "health"
+                            ]
+                        },
+                        "description": "Check if the API is running"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Health check endpoint to verify API status"
+        },
+        {
+            "name": "Authentication",
+            "item": [
+                {
+                    "name": "Register",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"password\": \"Password123\",\n    \"phoneNumber\": \"+1234567890\",\n    \"address\": \"123 Main St, City, Country\",\n    \"gender\": \"male\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "register"
+                            ]
+                        },
+                        "description": "Register a new user"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData && jsonData.token) {",
+                                    "    pm.environment.set(\"authToken\", jsonData.token);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"john.doe@example.com\",\n    \"password\": \"Password123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Login and get JWT token"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Profile",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/profile",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "profile"
+                            ]
+                        },
+                        "description": "Get user profile"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Profile",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Smith\",\n    \"phoneNumber\": \"+1987654321\",\n    \"address\": \"456 New St, City, Country\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/profile",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "profile"
+                            ]
+                        },
+                        "description": "Update user profile"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Change Password",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"currentPassword\": \"Password123\",\n    \"newPassword\": \"NewPassword123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/change-password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "change-password"
+                            ]
+                        },
+                        "description": "Change user password"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Authentication related endpoints"
+        },
+        {
+            "name": "Users",
+            "item": [
+                {
+                    "name": "Create User",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"firstName\": \"Jane\",\n    \"lastName\": \"Smith\",\n    \"email\": \"jane.smith@example.com\",\n    \"password\": \"Password123\",\n    \"phoneNumber\": \"+1234567891\",\n    \"address\": \"789 Oak St, City, Country\",\n    \"role\": \"employee\",\n    \"level\": 1,\n    \"gender\": \"female\",\n    \"managerId\": \"{{managerId}}\",\n    \"isActive\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users"
+                            ]
+                        },
+                        "description": "Create a new user (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get All Users",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users?role=employee&isActive=true&search=john",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users"
+                            ],
+                            "query": [
+                                {
+                                    "key": "role",
+                                    "value": "employee",
+                                    "description": "Filter by role"
+                                },
+                                {
+                                    "key": "isActive",
+                                    "value": "true",
+                                    "description": "Filter by active status"
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "john",
+                                    "description": "Search by name or email"
+                                }
+                            ]
+                        },
+                        "description": "Get all users (Manager or HR only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get User by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users/{{userId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                "{{userId}}"
+                            ]
+                        },
+                        "description": "Get user by ID (Manager or HR only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update User",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"firstName\": \"Jane\",\n    \"lastName\": \"Johnson\",\n    \"phoneNumber\": \"+1234567892\",\n    \"address\": \"101 Pine St, City, Country\",\n    \"role\": \"manager\",\n    \"level\": 2,\n    \"gender\": \"female\",\n    \"managerId\": \"{{managerId}}\",\n    \"isActive\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users/{{userId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                "{{userId}}"
+                            ]
+                        },
+                        "description": "Update user (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete User",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users/{{userId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                "{{userId}}"
+                            ]
+                        },
+                        "description": "Delete user (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Reset User Password",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"newPassword\": \"ResetPassword123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users/{{userId}}/reset-password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                "{{userId}}",
+                                "reset-password"
+                            ]
+                        },
+                        "description": "Reset user password (Super Admin only)"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "User management endpoints"
+        },
+        {
+            "name": "Leave Types",
+            "item": [
+                {
+                    "name": "Create Leave Type",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Annual Leave\",\n    \"description\": \"Regular annual leave for all employees\",\n    \"defaultDays\": 20,\n    \"isCarryForward\": true,\n    \"maxCarryForwardDays\": 5,\n    \"isActive\": true,\n    \"applicableGender\": null,\n    \"isHalfDayAllowed\": true,\n    \"isPaidLeave\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-types",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-types"
+                            ]
+                        },
+                        "description": "Create a new leave type (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get All Leave Types",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-types?isActive=true",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-types"
+                            ],
+                            "query": [
+                                {
+                                    "key": "isActive",
+                                    "value": "true",
+                                    "description": "Filter by active status"
+                                }
+                            ]
+                        },
+                        "description": "Get all leave types (All roles)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Leave Type by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-types/{{leaveTypeId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-types",
+                                "{{leaveTypeId}}"
+                            ]
+                        },
+                        "description": "Get leave type by ID (All roles)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Leave Type",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Annual Leave\",\n    \"description\": \"Updated description for annual leave\",\n    \"defaultDays\": 25,\n    \"isCarryForward\": true,\n    \"maxCarryForwardDays\": 10,\n    \"isActive\": true,\n    \"applicableGender\": null,\n    \"isHalfDayAllowed\": true,\n    \"isPaidLeave\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-types/{{leaveTypeId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-types",
+                                "{{leaveTypeId}}"
+                            ]
+                        },
+                        "description": "Update leave type (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Leave Type",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-types/{{leaveTypeId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-types",
+                                "{{leaveTypeId}}"
+                            ]
+                        },
+                        "description": "Delete leave type (Super Admin only)"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Leave type management endpoints"
+        },
+        {
+            "name": "Leave Balances",
+            "item": [
+                {
+                    "name": "Create Leave Balance",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"userId\": \"{{userId}}\",\n    \"leaveTypeId\": \"{{leaveTypeId}}\",\n    \"balance\": 20,\n    \"used\": 0,\n    \"carryForward\": 0,\n    \"year\": 2023\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-balances",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-balances"
+                            ]
+                        },
+                        "description": "Create a new leave balance (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get All Leave Balances",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-balances?userId={{userId}}&year=2023",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-balances"
+                            ],
+                            "query": [
+                                {
+                                    "key": "userId",
+                                    "value": "{{userId}}",
+                                    "description": "Filter by user ID"
+                                },
+                                {
+                                    "key": "year",
+                                    "value": "2023",
+                                    "description": "Filter by year"
+                                }
+                            ]
+                        },
+                        "description": "Get all leave balances (Manager or HR only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Leave Balance by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-balances/{{leaveBalanceId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-balances",
+                                "{{leaveBalanceId}}"
+                            ]
+                        },
+                        "description": "Get leave balance by ID (Manager or HR only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Current User Leave Balances",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-balances/my-balances?year=2023",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-balances",
+                                "my-balances"
+                            ],
+                            "query": [
+                                {
+                                    "key": "year",
+                                    "value": "2023",
+                                    "description": "Filter by year"
+                                }
+                            ]
+                        },
+                        "description": "Get current user leave balances (All roles)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Leave Balance",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"balance\": 25,\n    \"used\": 5,\n    \"carryForward\": 2\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-balances/{{leaveBalanceId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-balances",
+                                "{{leaveBalanceId}}"
+                            ]
+                        },
+                        "description": "Update leave balance (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Leave Balance",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-balances/{{leaveBalanceId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-balances",
+                                "{{leaveBalanceId}}"
+                            ]
+                        },
+                        "description": "Delete leave balance (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Bulk Create Leave Balances",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"leaveTypeId\": \"{{leaveTypeId}}\",\n    \"year\": 2023\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-balances/bulk-create",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-balances",
+                                "bulk-create"
+                            ]
+                        },
+                        "description": "Bulk create leave balances for all users (Super Admin only)"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Leave balance management endpoints"
+        },
+        {
+            "name": "Leave Requests",
+            "item": [
+                {
+                    "name": "Create Leave Request",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"leaveTypeId\": \"{{leaveTypeId}}\",\n    \"startDate\": \"2023-07-01\",\n    \"endDate\": \"2023-07-05\",\n    \"requestType\": \"full_day\",\n    \"reason\": \"Family vacation\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-requests",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-requests"
+                            ]
+                        },
+                        "description": "Create a new leave request (All roles)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get All Leave Requests",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-requests?status=pending&startDate=2023-01-01&endDate=2023-12-31&userId={{userId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-requests"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "pending",
+                                    "description": "Filter by status"
+                                },
+                                {
+                                    "key": "startDate",
+                                    "value": "2023-01-01",
+                                    "description": "Filter by start date"
+                                },
+                                {
+                                    "key": "endDate",
+                                    "value": "2023-12-31",
+                                    "description": "Filter by end date"
+                                },
+                                {
+                                    "key": "userId",
+                                    "value": "{{userId}}",
+                                    "description": "Filter by user ID"
+                                }
+                            ]
+                        },
+                        "description": "Get all leave requests (Manager or HR only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Leave Request by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-requests/{{leaveRequestId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-requests",
+                                "{{leaveRequestId}}"
+                            ]
+                        },
+                        "description": "Get leave request by ID (All roles)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Current User Leave Requests",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-requests/my-requests?status=pending&startDate=2023-01-01&endDate=2023-12-31",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-requests",
+                                "my-requests"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "pending",
+                                    "description": "Filter by status"
+                                },
+                                {
+                                    "key": "startDate",
+                                    "value": "2023-01-01",
+                                    "description": "Filter by start date"
+                                },
+                                {
+                                    "key": "endDate",
+                                    "value": "2023-12-31",
+                                    "description": "Filter by end date"
+                                }
+                            ]
+                        },
+                        "description": "Get current user leave requests (All roles)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Team Leave Requests",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-requests/team-requests?status=pending&startDate=2023-01-01&endDate=2023-12-31",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-requests",
+                                "team-requests"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "pending",
+                                    "description": "Filter by status"
+                                },
+                                {
+                                    "key": "startDate",
+                                    "value": "2023-01-01",
+                                    "description": "Filter by start date"
+                                },
+                                {
+                                    "key": "endDate",
+                                    "value": "2023-12-31",
+                                    "description": "Filter by end date"
+                                }
+                            ]
+                        },
+                        "description": "Get leave requests for team members (Manager only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Leave Request Status",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"status\": \"approved\",\n    \"comments\": \"Approved as requested\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-requests/{{leaveRequestId}}/status",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-requests",
+                                "{{leaveRequestId}}",
+                                "status"
+                            ]
+                        },
+                        "description": "Update leave request status (Manager or HR only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Cancel Leave Request",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"reason\": \"Change of plans\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/leave-requests/{{leaveRequestId}}/cancel",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "leave-requests",
+                                "{{leaveRequestId}}",
+                                "cancel"
+                            ]
+                        },
+                        "description": "Cancel leave request (All roles)"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Leave request management endpoints"
+        },
+        {
+            "name": "Holidays",
+            "item": [
+                {
+                    "name": "Create Holiday",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"New Year's Day\",\n    \"date\": \"2023-01-01\",\n    \"description\": \"New Year's Day celebration\",\n    \"isActive\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/holidays",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "holidays"
+                            ]
+                        },
+                        "description": "Create a new holiday (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get All Holidays",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/holidays?year=2023&isActive=true",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "holidays"
+                            ],
+                            "query": [
+                                {
+                                    "key": "year",
+                                    "value": "2023",
+                                    "description": "Filter by year"
+                                },
+                                {
+                                    "key": "isActive",
+                                    "value": "true",
+                                    "description": "Filter by active status"
+                                }
+                            ]
+                        },
+                        "description": "Get all holidays (All roles)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Holiday by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/holidays/{{holidayId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "holidays",
+                                "{{holidayId}}"
+                            ]
+                        },
+                        "description": "Get holiday by ID (All roles)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Holiday",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"New Year's Day\",\n    \"date\": \"2023-01-01\",\n    \"description\": \"Updated description for New Year's Day\",\n    \"isActive\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/holidays/{{holidayId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "holidays",
+                                "{{holidayId}}"
+                            ]
+                        },
+                        "description": "Update holiday (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Holiday",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/holidays/{{holidayId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "holidays",
+                                "{{holidayId}}"
+                            ]
+                        },
+                        "description": "Delete holiday (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Bulk Create Holidays",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"holidays\": [\n        {\n            \"name\": \"Independence Day\",\n            \"date\": \"2023-07-04\",\n            \"description\": \"Independence Day celebration\",\n            \"isActive\": true\n        },\n        {\n            \"name\": \"Christmas Day\",\n            \"date\": \"2023-12-25\",\n            \"description\": \"Christmas Day celebration\",\n            \"isActive\": true\n        }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/holidays/bulk-create",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "holidays",
+                                "bulk-create"
+                            ]
+                        },
+                        "description": "Bulk create holidays (Super Admin only)"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Holiday management endpoints"
+        },
+        {
+            "name": "Approval Workflows",
+            "item": [
+                {
+                    "name": "Create Approval Workflow",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Standard Approval\",\n    \"minDays\": 1,\n    \"maxDays\": 5,\n    \"approvalLevels\": [\n        {\n            \"level\": 1,\n            \"role\": \"manager\"\n        }\n    ],\n    \"isActive\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/approval-workflows",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "approval-workflows"
+                            ]
+                        },
+                        "description": "Create a new approval workflow (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get All Approval Workflows",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/approval-workflows?isActive=true",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "approval-workflows"
+                            ],
+                            "query": [
+                                {
+                                    "key": "isActive",
+                                    "value": "true",
+                                    "description": "Filter by active status"
+                                }
+                            ]
+                        },
+                        "description": "Get all approval workflows (Manager or HR only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Approval Workflow by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/approval-workflows/{{workflowId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "approval-workflows",
+                                "{{workflowId}}"
+                            ]
+                        },
+                        "description": "Get approval workflow by ID (Manager or HR only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Approval Workflow",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Extended Approval\",\n    \"minDays\": 6,\n    \"maxDays\": 10,\n    \"approvalLevels\": [\n        {\n            \"level\": 1,\n            \"role\": \"manager\"\n        },\n        {\n            \"level\": 2,\n            \"role\": \"hr\"\n        }\n    ],\n    \"isActive\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/approval-workflows/{{workflowId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "approval-workflows",
+                                "{{workflowId}}"
+                            ]
+                        },
+                        "description": "Update approval workflow (Super Admin only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Approval Workflow",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/approval-workflows/{{workflowId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "approval-workflows",
+                                "{{workflowId}}"
+                            ]
+                        },
+                        "description": "Delete approval workflow (Super Admin only)"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Approval workflow management endpoints"
+        },
+        {
+            "name": "Dashboard",
+            "item": [
+                {
+                    "name": "Get Manager Dashboard",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/dashboard/manager",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "dashboard",
+                                "manager"
+                            ]
+                        },
+                        "description": "Get manager dashboard data (Manager only)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Employee Dashboard",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{authToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/dashboard/employee",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "dashboard",
+                                "employee"
+                            ]
+                        },
+                        "description": "Get employee dashboard data (All roles)"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Dashboard data endpoints"
+        }
+    ],
+    "event": [
+        {
+            "listen": "prerequest",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    ""
+                ]
+            }
+        },
+        {
+            "listen": "test",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    ""
+                ]
+            }
+        }
+    ],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string",
+            "description": "Base URL for the API"
+        },
+        {
+            "key": "authToken",
+            "value": "",
+            "type": "string",
+            "description": "Authentication token"
+        },
+        {
+            "key": "userId",
+            "value": "",
+            "type": "string",
+            "description": "User ID for testing"
+        },
+        {
+            "key": "managerId",
+            "value": "",
+            "type": "string",
+            "description": "Manager ID for testing"
+        },
+        {
+            "key": "leaveTypeId",
+            "value": "",
+            "type": "string",
+            "description": "Leave Type ID for testing"
+        },
+        {
+            "key": "leaveBalanceId",
+            "value": "",
+            "type": "string",
+            "description": "Leave Balance ID for testing"
+        },
+        {
+            "key": "leaveRequestId",
+            "value": "",
+            "type": "string",
+            "description": "Leave Request ID for testing"
+        },
+        {
+            "key": "holidayId",
+            "value": "",
+            "type": "string",
+            "description": "Holiday ID for testing"
+        },
+        {
+            "key": "workflowId",
+            "value": "",
+            "type": "string",
+            "description": "Approval Workflow ID for testing"
+        }
+    ]
+}

@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model approval_workflows {
+  id             String   @id(map: "PK_approval_workflows") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name           String   @unique(map: "UQ_approval_workflows_name") @db.VarChar
+  minDays        Float
+  maxDays        Float
+  approvalLevels Json
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([isActive], map: "IDX_approval_workflows_active")
+  @@index([minDays, maxDays], map: "IDX_approval_workflows_days")
+}
+
+model departments {
+  id                                    String      @id(map: "PK_departments") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name                                  String      @unique(map: "UQ_departments_name") @db.VarChar(100)
+  description                           String?     @db.VarChar(255)
+  isActive                              Boolean     @default(true)
+  managerId                             String?     @db.Uuid
+  createdAt                             DateTime    @default(now()) @db.Timestamp(6)
+  updatedAt                             DateTime    @default(now()) @db.Timestamp(6)
+  users_departments_managerIdTousers    users?      @relation("departments_managerIdTousers", fields: [managerId], references: [id], onUpdate: NoAction, map: "FK_departments_users")
+  positions                             positions[]
+  users_users_departmentIdTodepartments users[]     @relation("users_departmentIdTodepartments")
+}
+
+model holidays {
+  id          String   @id(map: "PK_holidays") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String   @db.VarChar
+  date        DateTime @unique(map: "UQ_holidays_date") @db.Timestamp(6)
+  description String?  @db.VarChar
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([isActive], map: "IDX_holidays_active")
+  @@index([date], map: "IDX_holidays_date")
+}
+
+model leave_balances {
+  id           String      @id(map: "PK_leave_balances") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId       String      @db.Uuid
+  leaveTypeId  String      @db.Uuid
+  balance      Decimal     @db.Decimal(5, 1)
+  used         Decimal     @default(0) @db.Decimal(5, 1)
+  carryForward Decimal     @default(0) @db.Decimal(5, 1)
+  year         Int
+  createdAt    DateTime    @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime    @default(now()) @db.Timestamp(6)
+  leave_types  leave_types @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_leave_balances_leave_type")
+  users        users       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_leave_balances_user")
+
+  @@unique([userId, leaveTypeId, year], map: "UQ_leave_balances_user_type_year")
+  @@index([leaveTypeId], map: "IDX_leave_balances_leave_type")
+  @@index([userId], map: "IDX_leave_balances_user")
+  @@index([year], map: "IDX_leave_balances_year")
+}
+
+model leave_requests {
+  id                                     String                    @id(map: "PK_leave_requests") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId                                 String                    @db.Uuid
+  leaveTypeId                            String                    @db.Uuid
+  startDate                              DateTime                  @db.Timestamp(6)
+  endDate                                DateTime                  @db.Timestamp(6)
+  requestType                            leave_request_type_enum   @default(full_day)
+  numberOfDays                           Decimal                   @db.Decimal(5, 1)
+  reason                                 String                    @db.VarChar
+  status                                 leave_request_status_enum @default(pending)
+  approverId                             String?                   @db.Uuid
+  approverComments                       String?                   @db.VarChar
+  approvedAt                             DateTime?                 @db.Timestamp(6)
+  createdAt                              DateTime                  @default(now()) @db.Timestamp(6)
+  updatedAt                              DateTime                  @default(now()) @db.Timestamp(6)
+  metadata                               Json?
+  users_leave_requests_approverIdTousers users?                    @relation("leave_requests_approverIdTousers", fields: [approverId], references: [id], onUpdate: NoAction, map: "FK_leave_requests_approver")
+  leave_types                            leave_types               @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_leave_requests_leave_type")
+  users_leave_requests_userIdTousers     users                     @relation("leave_requests_userIdTousers", fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_leave_requests_user")
+
+  @@index([startDate, endDate], map: "IDX_leave_requests_dates")
+  @@index([leaveTypeId], map: "IDX_leave_requests_leave_type")
+  @@index([status], map: "IDX_leave_requests_status")
+  @@index([userId], map: "IDX_leave_requests_user")
+}
+
+model leave_types {
+  id                  String           @id(map: "PK_leave_types") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name                String           @unique(map: "UQ_leave_types_name") @db.VarChar
+  description         String           @db.VarChar
+  defaultDays         Int
+  isCarryForward      Boolean          @default(false)
+  maxCarryForwardDays Int              @default(0)
+  isActive            Boolean          @default(true)
+  applicableGender    String?          @db.VarChar
+  isHalfDayAllowed    Boolean          @default(false)
+  isPaidLeave         Boolean          @default(true)
+  createdAt           DateTime         @default(now()) @db.Timestamp(6)
+  updatedAt           DateTime         @default(now()) @db.Timestamp(6)
+  leave_balances      leave_balances[]
+  leave_requests      leave_requests[]
+
+  @@index([isActive], map: "IDX_leave_types_active")
+}
+
+model migrations {
+  id        Int    @id(map: "PK_8c82d7f526340ab734260ea46be") @default(autoincrement())
+  timestamp BigInt
+  name      String @db.VarChar
+}
+
+model pages {
+  id            String   @id(map: "PK_pages") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name          String   @unique(map: "UQ_pages_name") @db.VarChar(100)
+  description   String?  @db.VarChar(255)
+  slug          String   @unique(map: "UQ_pages_slug") @db.VarChar(100)
+  isActive      Boolean  @default(true)
+  isSystem      Boolean  @default(false)
+  configuration String?
+  accessRoles   String?
+  createdAt     DateTime @default(now()) @db.Timestamp(6)
+  updatedAt     DateTime @default(now()) @db.Timestamp(6)
+}
+
+model positions {
+  id           String       @id(map: "PK_positions") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name         String       @db.VarChar(100)
+  description  String?      @db.VarChar(255)
+  isActive     Boolean      @default(true)
+  departmentId String?      @db.Uuid
+  level        Int          @default(1)
+  createdAt    DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime     @default(now()) @db.Timestamp(6)
+  departments  departments? @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "FK_positions_departments")
+  users        users[]
+}
+
+model roles {
+  id          String   @id(map: "PK_roles") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String   @unique(map: "UQ_roles_name") @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  isActive    Boolean  @default(true)
+  permissions String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime @default(now()) @db.Timestamp(6)
+  users       users[]
+}
+
+model users {
+  id                                              String           @id(map: "PK_users") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  firstName                                       String           @db.VarChar
+  lastName                                        String           @db.VarChar
+  email                                           String           @unique(map: "UQ_users_email") @db.VarChar
+  password                                        String           @db.VarChar
+  phoneNumber                                     String?          @db.VarChar
+  address                                         String?          @db.VarChar
+  role                                            user_role_enum   @default(employee)
+  level                                           user_level_enum  @default(dbgenerated("1"))
+  gender                                          gender_enum?
+  managerId                                       String?          @db.Uuid
+  department                                      String?          @db.VarChar(100)
+  position                                        String?          @db.VarChar(100)
+  roleId                                          String?          @db.Uuid
+  departmentId                                    String?          @db.Uuid
+  positionId                                      String?          @db.Uuid
+  isActive                                        Boolean          @default(true)
+  createdAt                                       DateTime         @default(now()) @db.Timestamp(6)
+  updatedAt                                       DateTime         @default(now()) @db.Timestamp(6)
+  hrId                                            String?          @db.Uuid
+  teamLeadId                                      String?          @db.Uuid
+  departments_departments_managerIdTousers        departments[]    @relation("departments_managerIdTousers")
+  leave_balances                                  leave_balances[]
+  leave_requests_leave_requests_approverIdTousers leave_requests[] @relation("leave_requests_approverIdTousers")
+  leave_requests_leave_requests_userIdTousers     leave_requests[] @relation("leave_requests_userIdTousers")
+  departments_users_departmentIdTodepartments     departments?     @relation("users_departmentIdTodepartments", fields: [departmentId], references: [id], onUpdate: NoAction, map: "FK_users_departments")
+  users_users_hrIdTousers                         users?           @relation("users_hrIdTousers", fields: [hrId], references: [id], map: "FK_users_hr")
+  other_users_users_hrIdTousers                   users[]          @relation("users_hrIdTousers")
+  users_users_managerIdTousers                    users?           @relation("users_managerIdTousers", fields: [managerId], references: [id], onUpdate: NoAction, map: "FK_users_manager")
+  other_users_users_managerIdTousers              users[]          @relation("users_managerIdTousers")
+  positions                                       positions?       @relation(fields: [positionId], references: [id], onUpdate: NoAction, map: "FK_users_positions")
+  roles                                           roles?           @relation(fields: [roleId], references: [id], onUpdate: NoAction, map: "FK_users_roles")
+  users_users_teamLeadIdTousers                   users?           @relation("users_teamLeadIdTousers", fields: [teamLeadId], references: [id], map: "FK_users_teamLead")
+  other_users_users_teamLeadIdTousers             users[]          @relation("users_teamLeadIdTousers")
+
+  @@index([managerId], map: "IDX_users_manager")
+  @@index([role], map: "IDX_users_role")
+}
+
+enum gender_enum {
+  male
+  female
+  other
+}
+
+enum leave_request_status_enum {
+  pending
+  approved
+  rejected
+  cancelled
+  partially_approved
+}
+
+enum leave_request_type_enum {
+  full_day
+  first_half
+  second_half
+}
+
+enum user_level_enum {
+  level1 @map("1")
+  level2 @map("2")
+  level3 @map("3")
+  level4 @map("4")
+}
+
+enum user_role_enum {
+  super_admin
+  hr
+  manager
+  team_lead
+  employee
+}

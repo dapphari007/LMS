@@ -1,0 +1,123 @@
+
+> client@0.0.0 build
+> tsc -b && vite build
+
+src/pages/admin/EditUserPage.tsx(234,20): error TS2339: Property 'filter' does not exist on type 'never[] | GetUsersResponse'.
+  Property 'filter' does not exist on type 'GetUsersResponse'.
+src/pages/admin/LeaveBalancesPage.tsx(36,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, string[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Type '(params?: GetLeaveBalancesParams) => Promise<LeaveBalance[]>' is not assignable to type 'QueryFunction<unknown, string[]>'.
+      Types of parameters 'params' and 'context' are incompatible.
+        Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' has no properties in common with type 'GetLeaveBalancesParams'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<LeaveBalance[], Error, LeaveBalance[], string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '(params?: GetLeaveBalancesParams) => Promise<LeaveBalance[]>' is not assignable to type 'unique symbol | QueryFunction<LeaveBalance[], string[], never> | undefined'.
+      Type '(params?: GetLeaveBalancesParams) => Promise<LeaveBalance[]>' is not assignable to type 'QueryFunction<LeaveBalance[], string[], never>'.
+        Types of parameters 'params' and 'context' are incompatible.
+          Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' has no properties in common with type 'GetLeaveBalancesParams'.
+  Overload 3 of 3, '(options: UseQueryOptions<LeaveBalance[], Error, LeaveBalance[], string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '(params?: GetLeaveBalancesParams) => Promise<LeaveBalance[]>' is not assignable to type 'unique symbol | QueryFunction<LeaveBalance[], string[], never> | undefined'.
+      Type '(params?: GetLeaveBalancesParams) => Promise<LeaveBalance[]>' is not assignable to type 'QueryFunction<LeaveBalance[], string[], never>'.
+        Types of parameters 'params' and 'context' are incompatible.
+          Type '{ client: QueryClient; queryKey: string[]; signal: AbortSignal; meta: Record<string, unknown> | undefined; pageParam?: unknown; direction?: unknown; }' has no properties in common with type 'GetLeaveBalancesParams'.
+src/pages/admin/LeaveBalancesPage.tsx(44,9): error TS6133: 'users' is declared but its value is never read.
+src/pages/admin/LeaveBalancesPage.tsx(181,14): error TS18046: 'leaveBalances' is of type 'unknown'.
+src/pages/admin/LeaveBalancesPage.tsx(188,15): error TS18046: 'leaveBalances' is of type 'unknown'.
+src/pages/admin/LeaveTypesPage.tsx(24,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, string[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'DefinedInitialDataOptions<unknown, Error, unknown, string[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<GetLeaveTypesResponse, Error, GetLeaveTypesResponse, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UndefinedInitialDataOptions<GetLeaveTypesResponse, Error, GetLeaveTypesResponse, string[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<GetLeaveTypesResponse, Error, GetLeaveTypesResponse, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UseQueryOptions<GetLeaveTypesResponse, Error, GetLeaveTypesResponse, string[]>'.
+src/pages/admin/LeaveTypesPage.tsx(97,16): error TS2339: Property 'leaveTypes' does not exist on type '{}'.
+src/pages/admin/LeaveTypesPage.tsx(97,35): error TS2339: Property 'leaveTypes' does not exist on type '{}'.
+src/pages/admin/LeaveTypesPage.tsx(98,16): error TS2339: Property 'leaveTypes' does not exist on type '{}'.
+src/pages/admin/UsersPage.tsx(26,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, string[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'DefinedInitialDataOptions<unknown, Error, unknown, string[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<GetUsersResponse, Error, GetUsersResponse, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UndefinedInitialDataOptions<GetUsersResponse, Error, GetUsersResponse, string[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<GetUsersResponse, Error, GetUsersResponse, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UseQueryOptions<GetUsersResponse, Error, GetUsersResponse, string[]>'.
+src/pages/admin/UsersPage.tsx(130,18): error TS2339: Property 'users' does not exist on type '{}'.
+src/pages/admin/UsersPage.tsx(130,32): error TS2339: Property 'users' does not exist on type '{}'.
+src/pages/admin/UsersPage.tsx(131,18): error TS2339: Property 'users' does not exist on type '{}'.
+src/pages/auth/RegisterPage.tsx(24,9): error TS6133: 'password' is declared but its value is never read.
+src/pages/dashboard/DashboardPage.tsx(21,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, string[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'DefinedInitialDataOptions<unknown, Error, unknown, string[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<EmployeeDashboard, Error, EmployeeDashboard, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UndefinedInitialDataOptions<EmployeeDashboard, Error, EmployeeDashboard, string[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<EmployeeDashboard, Error, EmployeeDashboard, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UseQueryOptions<EmployeeDashboard, Error, EmployeeDashboard, string[]>'.
+src/pages/dashboard/DashboardPage.tsx(28,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, string[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'DefinedInitialDataOptions<unknown, Error, unknown, string[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<ManagerDashboard, Error, ManagerDashboard, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UndefinedInitialDataOptions<ManagerDashboard, Error, ManagerDashboard, string[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<ManagerDashboard, Error, ManagerDashboard, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UseQueryOptions<ManagerDashboard, Error, ManagerDashboard, string[]>'.
+src/pages/dashboard/DashboardPage.tsx(69,11): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/pages/dashboard/DashboardPage.tsx(71,35): error TS2339: Property 'leaveBalance' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(71,69): error TS2339: Property 'leaveBalance' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(73,38): error TS2339: Property 'leaveBalance' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(73,56): error TS7006: Parameter 'balance' implicitly has an 'any' type.
+src/pages/dashboard/DashboardPage.tsx(96,35): error TS2339: Property 'pendingRequests' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(96,72): error TS2339: Property 'pendingRequests' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(98,38): error TS2339: Property 'pendingRequests' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(98,59): error TS7006: Parameter 'request' implicitly has an 'any' type.
+src/pages/dashboard/DashboardPage.tsx(123,35): error TS2339: Property 'upcomingHolidays' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(123,73): error TS2339: Property 'upcomingHolidays' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(125,38): error TS2339: Property 'upcomingHolidays' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(125,60): error TS7006: Parameter 'holiday' implicitly has an 'any' type.
+src/pages/dashboard/DashboardPage.tsx(145,37): error TS2339: Property 'pendingRequests' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(145,73): error TS2339: Property 'pendingRequests' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(147,41): error TS2339: Property 'pendingRequests' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(147,62): error TS7006: Parameter 'request' implicitly has an 'any' type.
+src/pages/dashboard/DashboardPage.tsx(174,37): error TS2339: Property 'teamAvailability' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(174,74): error TS2339: Property 'teamAvailability' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(176,41): error TS2339: Property 'teamAvailability' does not exist on type '{}'.
+src/pages/dashboard/DashboardPage.tsx(176,63): error TS7006: Parameter 'day' implicitly has an 'any' type.
+src/pages/dashboard/DashboardPage.tsx(176,68): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/pages/leaves/ApplyLeavePage.tsx(10,1): error TS6133: 'Input' is declared but its value is never read.
+src/pages/leaves/ApplyLeavePage.tsx(20,42): error TS6133: 'setValue' is declared but its value is never read.
+src/pages/leaves/ApplyLeavePage.tsx(28,9): error TS6133: 'leaveTypeId' is declared but its value is never read.
+src/pages/leaves/ApplyLeavePage.tsx(35,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, string[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'DefinedInitialDataOptions<unknown, Error, unknown, string[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<GetLeaveTypesResponse, Error, GetLeaveTypesResponse, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UndefinedInitialDataOptions<GetLeaveTypesResponse, Error, GetLeaveTypesResponse, string[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<GetLeaveTypesResponse, Error, GetLeaveTypesResponse, string[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UseQueryOptions<GetLeaveTypesResponse, Error, GetLeaveTypesResponse, string[]>'.
+src/pages/leaves/ApplyLeavePage.tsx(42,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, (string | number)[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'DefinedInitialDataOptions<unknown, Error, unknown, (string | number)[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<GetHolidaysResponse, Error, GetHolidaysResponse, (string | number)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UndefinedInitialDataOptions<GetHolidaysResponse, Error, GetHolidaysResponse, (string | number)[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<GetHolidaysResponse, Error, GetHolidaysResponse, (string | number)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UseQueryOptions<GetHolidaysResponse, Error, GetHolidaysResponse, (string | number)[]>'.
+src/pages/leaves/ApplyLeavePage.tsx(48,42): error TS2339: Property 'holidays' does not exist on type '{}'.
+src/pages/leaves/ApplyLeavePage.tsx(48,55): error TS7006: Parameter 'h' implicitly has an 'any' type.
+src/pages/leaves/ApplyLeavePage.tsx(98,33): error TS2339: Property 'leaveTypes' does not exist on type '{}'.
+src/pages/leaves/ApplyLeavePage.tsx(98,48): error TS7006: Parameter 'type' implicitly has an 'any' type.
+src/pages/leaves/MyLeavesPage.tsx(26,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, (string | number)[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'DefinedInitialDataOptions<unknown, Error, unknown, (string | number)[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<GetLeaveRequestsResponse, Error, GetLeaveRequestsResponse, (string | number)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UndefinedInitialDataOptions<GetLeaveRequestsResponse, Error, GetLeaveRequestsResponse, (string | number)[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<GetLeaveRequestsResponse, Error, GetLeaveRequestsResponse, (string | number)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UseQueryOptions<GetLeaveRequestsResponse, Error, GetLeaveRequestsResponse, (string | number)[]>'.
+src/pages/leaves/MyLeavesPage.tsx(132,18): error TS2339: Property 'leaveRequests' does not exist on type '{}'.
+src/pages/leaves/MyLeavesPage.tsx(132,40): error TS2339: Property 'leaveRequests' does not exist on type '{}'.
+src/pages/leaves/MyLeavesPage.tsx(133,18): error TS2339: Property 'leaveRequests' does not exist on type '{}'.
+src/pages/leaves/TeamLeavesPage.tsx(30,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, (string | number)[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'DefinedInitialDataOptions<unknown, Error, unknown, (string | number)[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<GetLeaveRequestsResponse, Error, GetLeaveRequestsResponse, (string | number)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UndefinedInitialDataOptions<GetLeaveRequestsResponse, Error, GetLeaveRequestsResponse, (string | number)[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<GetLeaveRequestsResponse, Error, GetLeaveRequestsResponse, (string | number)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onError' does not exist in type 'UseQueryOptions<GetLeaveRequestsResponse, Error, GetLeaveRequestsResponse, (string | number)[]>'.
+src/pages/leaves/TeamLeavesPage.tsx(147,18): error TS2339: Property 'leaveRequests' does not exist on type '{}'.
+src/pages/leaves/TeamLeavesPage.tsx(147,40): error TS2339: Property 'leaveRequests' does not exist on type '{}'.
+src/pages/leaves/TeamLeavesPage.tsx(148,18): error TS2339: Property 'leaveRequests' does not exist on type '{}'.
+src/pages/leaves/ViewLeaveRequestPage.tsx(49,48): error TS2322: Type 'string' is not assignable to type '"approved" | "rejected"'.
