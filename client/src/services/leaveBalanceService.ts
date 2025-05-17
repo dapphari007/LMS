@@ -49,20 +49,79 @@ export const getUserLeaveBalances = async (
 export const getAllLeaveBalances = async (
   params?: GetLeaveBalancesParams
 ): Promise<LeaveBalance[]> => {
-  const response = await get<{ leaveBalances: LeaveBalance[]; count: number }>(
+  const response = await get<{ leaveBalances: any[]; count: number }>(
     "/leave-balances",
     { params }
   );
-  return response.leaveBalances || [];
+  
+  // Transform server model to client model
+  const transformedBalances = (response.leaveBalances || []).map(balance => {
+    // Calculate pending days from leave requests if not provided
+    const pendingDays = balance.pendingDays || 0;
+    
+    return {
+      id: balance.id,
+      userId: balance.userId,
+      leaveTypeId: balance.leaveTypeId,
+      year: balance.year,
+      // Map server 'balance' to client 'totalDays'
+      totalDays: balance.balance !== undefined ? Number(balance.balance) : 0,
+      // Map server 'used' to client 'usedDays'
+      usedDays: balance.used !== undefined ? Number(balance.used) : 0,
+      pendingDays: pendingDays,
+      // Calculate remainingDays - ensure we're working with numbers
+      remainingDays: balance.remainingDays !== null && balance.remainingDays !== undefined 
+        ? Number(balance.remainingDays) 
+        : (Number(balance.balance) + Number(balance.carryForward || 0) - Number(balance.used) - pendingDays),
+      carryForwardDays: balance.carryForward !== undefined ? Number(balance.carryForward) : 0,
+      user: balance.user,
+      leaveType: balance.leaveType,
+      createdAt: balance.createdAt,
+      updatedAt: balance.updatedAt
+    };
+  });
+  
+  console.log('Transformed leave balances:', transformedBalances);
+  return transformedBalances;
 };
 
 export const getLeaveBalanceById = async (
   id: string
 ): Promise<LeaveBalance> => {
-  const response = await get<{ leaveBalance: LeaveBalance }>(
+  const response = await get<{ leaveBalance: any }>(
     `/leave-balances/${id}`
   );
-  return response.leaveBalance;
+  
+  const balance = response.leaveBalance;
+  if (!balance) return null;
+  
+  // Calculate pending days from leave requests if not provided
+  const pendingDays = balance.pendingDays || 0;
+  
+  // Transform server model to client model
+  const transformedBalance = {
+    id: balance.id,
+    userId: balance.userId,
+    leaveTypeId: balance.leaveTypeId,
+    year: balance.year,
+    // Map server 'balance' to client 'totalDays'
+    totalDays: balance.balance !== undefined ? Number(balance.balance) : 0,
+    // Map server 'used' to client 'usedDays'
+    usedDays: balance.used !== undefined ? Number(balance.used) : 0,
+    pendingDays: pendingDays,
+    // Calculate remainingDays - ensure we're working with numbers
+    remainingDays: balance.remainingDays !== null && balance.remainingDays !== undefined 
+      ? Number(balance.remainingDays) 
+      : (Number(balance.balance) + Number(balance.carryForward || 0) - Number(balance.used) - pendingDays),
+    carryForwardDays: balance.carryForward !== undefined ? Number(balance.carryForward) : 0,
+    user: balance.user,
+    leaveType: balance.leaveType,
+    createdAt: balance.createdAt,
+    updatedAt: balance.updatedAt
+  };
+  
+  console.log('Transformed leave balance:', transformedBalance);
+  return transformedBalance;
 };
 
 export const createLeaveBalance = async (

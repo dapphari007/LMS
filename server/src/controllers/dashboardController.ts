@@ -288,7 +288,7 @@ export const getEmployeeDashboard = async (
             totalDays: parseFloat(balance.balance.toString()) || 0,
             usedDays: parseFloat(balance.used.toString()) || 0,
             pendingDays: pendingDays,
-            remainingDays: parseFloat((balance.balance + balance.carryForward - balance.used).toString()) || 0,
+            remainingDays: parseFloat((balance.balance + balance.carryForward - balance.used - pendingDays).toString()) || 0,
             carryForwardDays: parseFloat(balance.carryForward.toString()) || 0,
             leaveType: {
               id: balance.leaveType.id,
@@ -315,7 +315,16 @@ export const getEmployeeDashboard = async (
                AND lr.status = 'pending'
               ), 0
             ) as "pendingDays",
-            (lb.balance + lb."carryForward" - lb.used) as "remainingDays",
+            (lb.balance + lb."carryForward" - lb.used - 
+              COALESCE(
+                (SELECT SUM(lr."numberOfDays") 
+                 FROM leave_requests lr 
+                 WHERE lr."userId" = lb."userId" 
+                 AND lr."leaveTypeId" = lb."leaveTypeId" 
+                 AND lr.status = 'pending'
+                ), 0
+              )
+            ) as "remainingDays",
             lb."carryForward" as "carryForwardDays",
             lb.year
           FROM leave_balances lb

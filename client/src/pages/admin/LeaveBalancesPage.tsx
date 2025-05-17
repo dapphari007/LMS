@@ -118,7 +118,9 @@ export default function LeaveBalancesPage() {
       setTimeout(() => setSuccess(null), 3000);
     },
     onError: (err: any) => {
-      setError(err.response?.data?.message || "Failed to update leave balance");
+      console.error("Error updating leave balance:", err);
+      const errorMessage = err.response?.data?.message || "Failed to update leave balance";
+      setError(errorMessage);
     },
   });
 
@@ -145,6 +147,13 @@ export default function LeaveBalancesPage() {
       return;
     }
 
+    // Log the data being sent for debugging
+    console.log("Updating leave balance:", {
+      id: selectedBalance.id,
+      totalDays: newTotalDays,
+      adjustmentReason: editFormData.adjustmentReason
+    });
+    
     updateMutation.mutate({
       id: selectedBalance.id,
       totalDays: newTotalDays,

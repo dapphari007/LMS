@@ -102,9 +102,9 @@ const HRDashboardPage: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-primary-600">
-                          {balance.remainingDays} / {balance.totalDays}
+                          {balance.usedDays} / {balance.totalDays}
                         </p>
-                        <p className="text-xs text-gray-500">Remaining</p>
+                        <p className="text-xs text-gray-500">Used</p>
                       </div>
                     </div>
                   ))}

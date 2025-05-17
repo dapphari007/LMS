@@ -99,14 +99,15 @@ const DashboardPage: React.FC = () => {
                         <p className="font-medium">{balance.leaveType?.name}</p>
                         <p className="text-sm text-gray-500">
                           Used: {balance.usedDays} | Pending:{" "}
-                          {balance.pendingDays}
+                          {balance.pendingDays} | Remaining:{" "}
+                          {balance.totalDays - balance.usedDays}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-primary-600">
-                          {balance.remainingDays} / {balance.totalDays}
+                          {balance.usedDays} / {balance.totalDays}
                         </p>
-                        <p className="text-xs text-gray-500">Remaining</p>
+                        <p className="text-xs text-gray-500">Remaining: {balance.totalDays - balance.usedDays}</p>
                       </div>
                     </div>
                   ))}
@@ -198,14 +199,15 @@ const DashboardPage: React.FC = () => {
                             <p className="font-medium">{balance.leaveType?.name}</p>
                             <p className="text-sm text-gray-500">
                               Used: {balance.usedDays} | Pending:{" "}
-                              {balance.pendingDays}
+                              {balance.pendingDays} | Remaining:{" "}
+                              {balance.totalDays - balance.usedDays}
                             </p>
                           </div>
                           <div className="text-right">
                             <p className="text-lg font-bold text-primary-600">
-                              {balance.remainingDays} / {balance.totalDays}
+                              {balance.usedDays} / {balance.totalDays}
                             </p>
-                            <p className="text-xs text-gray-500">Remaining</p>
+                            <p className="text-xs text-gray-500">Remaining: {balance.totalDays - balance.usedDays}</p>
                           </div>
                         </div>
                       ))}

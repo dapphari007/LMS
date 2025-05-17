@@ -1,6 +1,6 @@
 import { Request, ResponseToolkit } from "@hapi/hapi";
 import { AppDataSource } from "../config/database";
-import { LeaveBalance, User, LeaveType, Gender } from "../models";
+import { LeaveBalance, User, LeaveType, Gender, LeaveRequest } from "../models";
 import { getCurrentYear } from "../utils/dateUtils";
 import emailService from "../utils/emailService";
 import logger from "../utils/logger";
@@ -138,10 +138,53 @@ export const getAllLeaveBalances = async (
       },
     });
 
+    // Get pending days for each leave balance
+    const leaveRequestRepository = AppDataSource.getRepository(LeaveRequest);
+    const enhancedLeaveBalances = await Promise.all(
+      leaveBalances.map(async (balance) => {
+        try {
+          // Get pending leave requests for this user and leave type
+          const pendingRequests = await leaveRequestRepository.createQueryBuilder('lr')
+            .select('SUM(lr.numberOfDays)', 'pendingDays')
+            .where('lr.userId = :userId', { userId: balance.userId })
+            .andWhere('lr.leaveTypeId = :leaveTypeId', { leaveTypeId: balance.leaveTypeId })
+            .andWhere('lr.status = :status', { status: 'pending' })
+            .getRawOne();
+
+          const pendingDays = pendingRequests?.pendingDays ? parseFloat(pendingRequests.pendingDays) : 0;
+          
+          // Calculate remaining days
+          const remainingDays = balance.balance + balance.carryForward - balance.used - pendingDays;
+          
+          // Return enhanced balance with additional fields for client compatibility
+          return {
+            ...balance,
+            // Add client-side field names
+            totalDays: balance.balance,
+            usedDays: balance.used,
+            pendingDays,
+            remainingDays,
+            carryForwardDays: balance.carryForward
+          };
+        } catch (error) {
+          logger.error(`Error calculating pending days for balance ${balance.id}: ${error}`);
+          return {
+            ...balance,
+            // Add client-side field names with default values
+            totalDays: balance.balance,
+            usedDays: balance.used,
+            pendingDays: 0,
+            remainingDays: balance.balance + balance.carryForward - balance.used,
+            carryForwardDays: balance.carryForward
+          };
+        }
+      })
+    );
+
     return h
       .response({
-        leaveBalances,
-        count: leaveBalances.length,
+        leaveBalances: enhancedLeaveBalances,
+        count: enhancedLeaveBalances.length,
       })
       .code(200);
   } catch (error) {
@@ -170,11 +213,58 @@ export const getLeaveBalanceById = async (
       return h.response({ message: "Leave balance not found" }).code(404);
     }
 
-    return h
-      .response({
-        leaveBalance,
-      })
-      .code(200);
+    // Get pending days for this leave balance
+    const leaveRequestRepository = AppDataSource.getRepository(LeaveRequest);
+    try {
+      // Get pending leave requests for this user and leave type
+      const pendingRequests = await leaveRequestRepository.createQueryBuilder('lr')
+        .select('SUM(lr.numberOfDays)', 'pendingDays')
+        .where('lr.userId = :userId', { userId: leaveBalance.userId })
+        .andWhere('lr.leaveTypeId = :leaveTypeId', { leaveTypeId: leaveBalance.leaveTypeId })
+        .andWhere('lr.status = :status', { status: 'pending' })
+        .getRawOne();
+
+      const pendingDays = pendingRequests?.pendingDays ? parseFloat(pendingRequests.pendingDays) : 0;
+      
+      // Calculate remaining days
+      const remainingDays = leaveBalance.balance + leaveBalance.carryForward - leaveBalance.used - pendingDays;
+      
+      // Return enhanced balance with additional fields for client compatibility
+      const enhancedLeaveBalance = {
+        ...leaveBalance,
+        // Add client-side field names
+        totalDays: leaveBalance.balance,
+        usedDays: leaveBalance.used,
+        pendingDays,
+        remainingDays,
+        carryForwardDays: leaveBalance.carryForward
+      };
+
+      return h
+        .response({
+          leaveBalance: enhancedLeaveBalance,
+        })
+        .code(200);
+    } catch (error) {
+      logger.error(`Error calculating pending days for balance ${id}: ${error}`);
+      
+      // Return with default values if there's an error
+      const enhancedLeaveBalance = {
+        ...leaveBalance,
+        // Add client-side field names with default values
+        totalDays: leaveBalance.balance,
+        usedDays: leaveBalance.used,
+        pendingDays: 0,
+        remainingDays: leaveBalance.balance + leaveBalance.carryForward - leaveBalance.used,
+        carryForwardDays: leaveBalance.carryForward
+      };
+      
+      return h
+        .response({
+          leaveBalance: enhancedLeaveBalance,
+        })
+        .code(200);
+    }
   } catch (error) {
     logger.error(`Error in getLeaveBalanceById: ${error}`);
     return h
@@ -213,11 +303,59 @@ export const getUserLeaveBalances = async (
         },
       },
     });
+    
+    // Debug the raw leave balances
+    console.log(`Raw leave balances for user ${userId}:`, JSON.stringify(leaveBalances, null, 2));
+
+    // Get pending days for each leave balance
+    const leaveRequestRepository = AppDataSource.getRepository(LeaveRequest);
+    
+    // Enhance leave balances with pending days and remaining days
+    const enhancedLeaveBalances = await Promise.all(
+      leaveBalances.map(async (balance) => {
+        try {
+          // Get pending leave requests for this user and leave type
+          const pendingRequests = await leaveRequestRepository.createQueryBuilder('lr')
+            .select('SUM(lr.numberOfDays)', 'pendingDays')
+            .where('lr.userId = :userId', { userId: balance.userId })
+            .andWhere('lr.leaveTypeId = :leaveTypeId', { leaveTypeId: balance.leaveTypeId })
+            .andWhere('lr.status = :status', { status: 'pending' })
+            .getRawOne();
+
+          const pendingDays = pendingRequests?.pendingDays ? parseFloat(pendingRequests.pendingDays) : 0;
+          
+          // Calculate remaining days
+          const remainingDays = balance.balance + balance.carryForward - balance.used - pendingDays;
+          
+          // Return enhanced balance with additional fields for client compatibility
+          return {
+            ...balance,
+            // Add client-side field names
+            totalDays: balance.balance,
+            usedDays: balance.used,
+            pendingDays,
+            remainingDays,
+            carryForwardDays: balance.carryForward
+          };
+        } catch (error) {
+          logger.error(`Error calculating pending days for balance ${balance.id}: ${error}`);
+          return {
+            ...balance,
+            // Add client-side field names with default values
+            totalDays: balance.balance,
+            usedDays: balance.used,
+            pendingDays: 0,
+            remainingDays: balance.balance + balance.carryForward - balance.used,
+            carryForwardDays: balance.carryForward
+          };
+        }
+      })
+    );
 
     return h
       .response({
-        leaveBalances,
-        count: leaveBalances.length,
+        leaveBalances: enhancedLeaveBalances,
+        count: enhancedLeaveBalances.length,
       })
       .code(200);
   } catch (error) {
@@ -234,7 +372,7 @@ export const updateLeaveBalance = async (
 ) => {
   try {
     const { id } = request.params;
-    const { balance, used, carryForward } = request.payload as any;
+    const { totalDays, adjustmentReason, balance, used, carryForward } = request.payload as any;
 
     // Get leave balance
     const leaveBalanceRepository = AppDataSource.getRepository(LeaveBalance);
@@ -248,7 +386,14 @@ export const updateLeaveBalance = async (
     }
 
     // Update leave balance fields
-    if (balance !== undefined) leaveBalance.balance = balance;
+    // Handle both formats - the admin UI sends totalDays, while API might send balance directly
+    if (totalDays !== undefined) {
+      leaveBalance.balance = totalDays;
+      logger.info(`Updating leave balance for ${id} to ${totalDays} days (reason: ${adjustmentReason || 'Not provided'})`);
+    } else if (balance !== undefined) {
+      leaveBalance.balance = balance;
+    }
+    
     if (used !== undefined) leaveBalance.used = used;
     if (carryForward !== undefined) leaveBalance.carryForward = carryForward;
 
@@ -256,11 +401,11 @@ export const updateLeaveBalance = async (
     const updatedLeaveBalance = await leaveBalanceRepository.save(leaveBalance);
 
     // Send email notification
-    if (balance !== undefined && leaveBalance.user && leaveBalance.leaveType) {
+    if ((totalDays !== undefined || balance !== undefined) && leaveBalance.user && leaveBalance.leaveType) {
       await emailService.sendLeaveBalanceUpdateNotification(
         leaveBalance.user.email,
         leaveBalance.leaveType.name,
-        balance
+        totalDays !== undefined ? totalDays : balance
       );
     }
 

@@ -174,13 +174,32 @@ export const createLeaveRequest = async (
         .code(404);
     }
 
+    // Calculate pending leave days
+    const pendingLeaveRequests = await leaveRequestRepository.find({
+      where: {
+        userId: userId as string,
+        leaveTypeId: leaveTypeId as string,
+        status: LeaveRequestStatus.PENDING,
+      },
+    });
+
+    const pendingDays = pendingLeaveRequests.reduce(
+      (total, request) => total + request.numberOfDays,
+      0
+    );
+
+    // Calculate available balance considering pending requests
     const availableBalance =
-      leaveBalance.balance + leaveBalance.carryForward - leaveBalance.used;
+      leaveBalance.balance + leaveBalance.carryForward - leaveBalance.used - pendingDays;
 
     if (numberOfDays > availableBalance) {
       return h
         .response({
-          message: `Insufficient leave balance. Available: ${availableBalance}, Requested: ${numberOfDays}`,
+          message: `Insufficient leave balance. Available: ${availableBalance.toFixed(1)}, Requested: ${numberOfDays}, Pending: ${pendingDays}`,
+          availableBalance: availableBalance,
+          requestedDays: numberOfDays,
+          pendingDays: pendingDays,
+          success: false
         })
         .code(400);
     }
