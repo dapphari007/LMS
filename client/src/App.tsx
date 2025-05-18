@@ -84,18 +84,7 @@ const router = createBrowserRouter([
     path: "/super-admin",
     element: <SuperAdminLoginPage />,
   },
-  {
-    path: "/register",
-    element: <RegisterPage />,
-  },
-  {
-    path: "/super-admin-info",
-    element: <SuperAdminLoginInfo />,
-  },
-  {
-    path: "/login-debug",
-    element: <LoginDebugger />,
-  },
+  // Routes for register, super-admin-info, and login-debug have been removed
   {
     path: "/create-super-admin",
     element: <CreateSuperAdmin />,
@@ -105,9 +94,9 @@ const router = createBrowserRouter([
     element: <SimpleLoginForm />,
   },
 
-  // Protected Routes - All Users
+  // Protected Routes - All Users except super_admin
   {
-    element: <ProtectedRoute />,
+    element: <ProtectedRoute allowedRoles={["employee", "manager", "admin", "team_lead", "hr"]} />,
     children: [
       {
         path: "/",
@@ -168,11 +157,11 @@ const router = createBrowserRouter([
     ],
   },
 
-  // Super Admin Routes
+  // Super Admin Routes - Also accessible to users with dashboardType "admin"
   {
     path: "/super-admin-dashboard",
     element: (
-      <ProtectedRoute allowedRoles={["super_admin"]}>
+      <ProtectedRoute allowedRoles={["super_admin", "employee", "manager", "admin", "team_lead", "hr"]}>
         <SuperAdminDashboardPage />
       </ProtectedRoute>
     ),
@@ -180,14 +169,6 @@ const router = createBrowserRouter([
   // Redirects for super admin dashboard
   {
     path: "/dashboard",
-    element: (
-      <ProtectedRoute allowedRoles={["super_admin"]}>
-        <Navigate to="/super-admin-dashboard" replace />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/",
     element: (
       <ProtectedRoute allowedRoles={["super_admin"]}>
         <Navigate to="/super-admin-dashboard" replace />

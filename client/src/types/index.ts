@@ -6,6 +6,8 @@ export enum UserRole {
   EMPLOYEE = "employee",
 }
 
+export type DashboardType = "employee" | "manager" | "hr" | "admin" | "super_admin";
+
 export interface User {
   id: string;
   firstName: string;
@@ -15,7 +17,7 @@ export interface User {
   address?: string;
   role: "super_admin" | "employee" | "team_lead" | "manager" | "admin" | "hr";
   roleId?: string; // Added for custom roles
-  roleObj?: { id: string; name: string; }; // Added for role object reference
+  roleObj?: { id: string; name: string; dashboardType?: DashboardType }; // Added for role object reference
   level: number;
   gender?: "male" | "female" | "other";
   isActive: boolean;
@@ -24,6 +26,7 @@ export interface User {
   teamLeadId?: string;
   department?: string;
   position?: string;
+  dashboardType?: DashboardType; // Added for custom dashboard type
   createdAt?: string;
   updatedAt?: string;
 }
@@ -35,13 +38,14 @@ export interface AuthUser {
   email: string;
   role: "super_admin" | "employee" | "team_lead" | "manager" | "admin" | "hr";
   roleId?: string; // Added for custom roles
-  roleObj?: { id: string; name: string; }; // Added for role object reference
+  roleObj?: { id: string; name: string; dashboardType?: DashboardType }; // Added for role object reference
   level: number;
   managerId?: string;
   hrId?: string;
   teamLeadId?: string;
   department?: string;
   position?: string;
+  dashboardType?: DashboardType; // Added for custom dashboard type
 }
 
 export interface LoginCredentials {

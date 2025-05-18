@@ -7,10 +7,11 @@ import {
   OneToMany,
   ManyToOne,
   JoinColumn,
+  AfterLoad,
 } from "typeorm";
 import { LeaveRequest } from "./LeaveRequest";
 import { LeaveBalance } from "./LeaveBalance";
-import { Role } from "./Role";
+import { Role, DashboardType } from "./Role";
 import { Department } from "./Department";
 import { Position } from "./Position";
 
@@ -142,4 +143,31 @@ export class User {
 
   @OneToMany(() => LeaveBalance, (leaveBalance) => leaveBalance.user)
   leaveBalances: LeaveBalance[];
+
+  // Virtual property for dashboard type
+  dashboardType: DashboardType;
+
+  @AfterLoad()
+  setDashboardType() {
+    // Set dashboard type based on role object if available, otherwise use default based on role
+    if (this.roleObj && this.roleObj.dashboardType) {
+      this.dashboardType = this.roleObj.dashboardType;
+    } else {
+      // Default mapping based on role
+      switch (this.role) {
+        case UserRole.SUPER_ADMIN:
+          this.dashboardType = DashboardType.SUPER_ADMIN;
+          break;
+        case UserRole.HR:
+          this.dashboardType = DashboardType.HR;
+          break;
+        case UserRole.MANAGER:
+        case UserRole.TEAM_LEAD:
+          this.dashboardType = DashboardType.MANAGER;
+          break;
+        default:
+          this.dashboardType = DashboardType.EMPLOYEE;
+      }
+    }
+  }
 }

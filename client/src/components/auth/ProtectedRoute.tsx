@@ -33,32 +33,60 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check role permissions if allowedRoles is provided
-  if (allowedRoles && user) {
-    // Check if user role is directly in the allowed roles
-    const isDirectlyAllowed = allowedRoles.includes(user.role);
+  // Check if user exists
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Check if user role is allowed
+  if (allowedRoles) {
+    console.log("ProtectedRoute - Checking access for path:", location.pathname);
+    console.log("ProtectedRoute - User details:", {
+      role: user.role,
+      dashboardType: user.dashboardType,
+      roleObj: user.roleObj
+    });
+    console.log("ProtectedRoute - Allowed roles:", allowedRoles);
     
-    // Check if user has a custom role with admin permissions
-    const hasCustomAdminRole = checkCustomRoles && 
-      user.roleObj && 
-      user.roleObj.permissions && 
-      user.roleObj.permissions.includes('admin');
-    
-    if (!isDirectlyAllowed && !hasCustomAdminRole) {
-      console.log("ProtectedRoute - User role not allowed:", user.role, "Allowed roles:", allowedRoles);
-      return <Navigate to="/" replace />;
+    // Special case for super-admin-dashboard
+    if (location.pathname === "/super-admin-dashboard" && user.dashboardType === "admin") {
+      // Allow users with dashboardType "admin" to access super-admin-dashboard
+      console.log("ProtectedRoute - Allowing access to super-admin-dashboard for dashboardType admin");
+      // Continue to render the content
+    } else {
+      const isDirectlyAllowed = allowedRoles.includes(user.role);
+      const hasCustomAdminRole = checkCustomRoles && 
+        user.roleObj && 
+        user.roleObj.permissions && 
+        user.roleObj.permissions.includes('admin');
+      
+      if (!isDirectlyAllowed && !hasCustomAdminRole) {
+        console.log("ProtectedRoute - User role not allowed:", user.role, "Allowed roles:", allowedRoles);
+        return <Navigate to="/" replace />;
+      }
     }
   }
 
-  // Check excluded roles
-  if (excludeRoles && user && excludeRoles.includes(user.role)) {
+  // Check if user role is excluded
+  if (excludeRoles && excludeRoles.includes(user.role)) {
     console.log("ProtectedRoute - User role excluded:", user.role, "Excluded roles:", excludeRoles);
-    // For super_admin, redirect to super admin dashboard
-    if (user.role === "super_admin") {
+    
+    if (user.role === "super_admin" || user.dashboardType === "super_admin") {
+      return <Navigate to="/super-admin-dashboard" replace />;
+    } else {
+      return <Navigate to="/" replace />;
+    }
+  }
+  
+  // Handle dashboard type redirects for root path
+  if (location.pathname === "/" && user) {
+    const dashboardType = user.dashboardType || user.role;
+    
+    // For users with dashboardType "admin" or role "super_admin", redirect to super-admin-dashboard
+    if (dashboardType === "super_admin" || dashboardType === "admin") {
+      console.log("ProtectedRoute - Redirecting to super-admin-dashboard based on dashboardType:", dashboardType);
       return <Navigate to="/super-admin-dashboard" replace />;
     }
-    // For other excluded roles, redirect to home
-    return <Navigate to="/" replace />;
   }
   
   console.log("ProtectedRoute - Rendering protected content for path:", location.pathname);

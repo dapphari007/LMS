@@ -6,7 +6,7 @@ import config from "../../config";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
-import RoleForm from "../../components/forms/RoleForm";
+import RoleForm, { DashboardType } from "../../components/forms/RoleForm";
 
 const EditRolePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +35,7 @@ const EditRolePage: React.FC = () => {
     name: string;
     description: string;
     permissions: any;
+    dashboardType: DashboardType;
   }) => {
     setLoading(true);
     setError(null);
@@ -46,6 +47,7 @@ const EditRolePage: React.FC = () => {
           name: formData.name,
           description: formData.description,
           permissions: formData.permissions,
+          dashboardType: formData.dashboardType,
         },
         {
           headers: {
@@ -91,6 +93,7 @@ const EditRolePage: React.FC = () => {
                   name: role.name,
                   description: role.description || "",
                   permissions: role.permissions ? JSON.parse(role.permissions) : {},
+                  dashboardType: role.dashboardType || DashboardType.EMPLOYEE,
                 }}
                 onSubmit={handleSubmit}
                 loading={loading}

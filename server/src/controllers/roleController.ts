@@ -1,6 +1,6 @@
 import { Request, ResponseToolkit } from "@hapi/hapi";
 import { AppDataSource, ensureDatabaseConnection } from "../config/database";
-import { Role, User, UserRole } from "../models";
+import { Role, User, UserRole, DashboardType } from "../models";
 import logger from "../utils/logger";
 
 export const createRole = async (request: Request, h: ResponseToolkit) => {
@@ -8,7 +8,7 @@ export const createRole = async (request: Request, h: ResponseToolkit) => {
     // Ensure database connection is established before proceeding
     await ensureDatabaseConnection();
 
-    const { name, description, permissions, isActive } = request.payload as any;
+    const { name, description, permissions, isActive, dashboardType } = request.payload as any;
 
     // Validate input
     if (!name) {
@@ -32,6 +32,13 @@ export const createRole = async (request: Request, h: ResponseToolkit) => {
     role.permissions = permissions ? JSON.stringify(permissions) : null;
     role.isActive = isActive !== undefined ? isActive : true;
     role.isSystem = false; // User-created roles are not system roles
+    
+    // Set dashboard type if provided, otherwise default to EMPLOYEE
+    if (dashboardType && Object.values(DashboardType).includes(dashboardType)) {
+      role.dashboardType = dashboardType;
+    } else {
+      role.dashboardType = DashboardType.EMPLOYEE;
+    }
 
     // Save role to database
     const savedRole = await roleRepository.save(role);
@@ -121,7 +128,7 @@ export const updateRole = async (request: Request, h: ResponseToolkit) => {
     await ensureDatabaseConnection();
 
     const { id } = request.params;
-    const { name, description, permissions, isActive } = request.payload as any;
+    const { name, description, permissions, isActive, dashboardType } = request.payload as any;
 
     // Get role
     const roleRepository = AppDataSource.getRepository(Role);
@@ -154,6 +161,11 @@ export const updateRole = async (request: Request, h: ResponseToolkit) => {
     if (permissions !== undefined)
       role.permissions = permissions ? JSON.stringify(permissions) : null;
     if (isActive !== undefined) role.isActive = isActive;
+    
+    // Update dashboard type if provided
+    if (dashboardType && Object.values(DashboardType).includes(dashboardType)) {
+      role.dashboardType = dashboardType;
+    }
 
     // Save updated role
     const updatedRole = await roleRepository.save(role);
@@ -263,6 +275,7 @@ export const initializeSystemRoles = async () => {
             delete: true,
           },
         }),
+        dashboardType: DashboardType.SUPER_ADMIN,
         isSystem: true,
       },
       {
@@ -310,6 +323,7 @@ export const initializeSystemRoles = async () => {
             delete: false,
           },
         }),
+        dashboardType: DashboardType.MANAGER,
         isSystem: true,
       },
       {
@@ -352,6 +366,7 @@ export const initializeSystemRoles = async () => {
             delete: true,
           },
         }),
+        dashboardType: DashboardType.HR,
         isSystem: true,
       },
       {
@@ -399,6 +414,7 @@ export const initializeSystemRoles = async () => {
             delete: false,
           },
         }),
+        dashboardType: DashboardType.MANAGER,
         isSystem: true,
       },
       {
@@ -446,6 +462,7 @@ export const initializeSystemRoles = async () => {
             delete: false,
           },
         }),
+        dashboardType: DashboardType.EMPLOYEE,
         isSystem: true,
       },
     ];

@@ -10,16 +10,27 @@ interface PermissionSection {
   };
 }
 
+// Define dashboard types
+export enum DashboardType {
+  EMPLOYEE = "employee",
+  MANAGER = "manager",
+  HR = "hr",
+  ADMIN = "admin",
+  SUPER_ADMIN = "super_admin",
+}
+
 interface RoleFormProps {
   initialData?: {
     name: string;
     description: string;
     permissions: PermissionSection;
+    dashboardType?: DashboardType;
   };
   onSubmit: (data: {
     name: string;
     description: string;
     permissions: PermissionSection;
+    dashboardType: DashboardType;
   }) => void;
   loading: boolean;
   isEditing?: boolean;
@@ -45,33 +56,39 @@ const RoleForm: React.FC<RoleFormProps> = ({
 }) => {
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
+  const [dashboardType, setDashboardType] = useState<DashboardType>(
+    initialData?.dashboardType || DashboardType.EMPLOYEE
+  );
   const [permissions, setPermissions] = useState<PermissionSection>(
     initialData?.permissions || {}
   );
 
-  // Initialize permissions for sections that don't exist yet
-  const initializePermissions = () => {
-    const updatedPermissions = { ...permissions };
-    
-    defaultPermissionSections.forEach((section) => {
-      if (!updatedPermissions[section]) {
-        updatedPermissions[section] = {
-          create: false,
-          read: false,
-          update: false,
-          delete: false,
-        };
-      }
-    });
-    
-    setPermissions(updatedPermissions);
-  };
-
-  // Initialize permissions on first render if needed
+  // Initialize permissions on component mount
   React.useEffect(() => {
+    // Initialize permissions for sections that don't exist yet
+    const initializePermissions = () => {
+      const updatedPermissions = { ...permissions };
+      
+      defaultPermissionSections.forEach((section) => {
+        if (!updatedPermissions[section]) {
+          updatedPermissions[section] = {
+            create: false,
+            read: false,
+            update: false,
+            delete: false,
+          };
+        }
+      });
+      
+      if (JSON.stringify(updatedPermissions) !== JSON.stringify(permissions)) {
+        setPermissions(updatedPermissions);
+      }
+    };
+
     if (Object.keys(permissions).length === 0) {
       initializePermissions();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handlePermissionChange = (
@@ -94,6 +111,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
       name,
       description,
       permissions,
+      dashboardType,
     });
   };
 
@@ -131,6 +149,31 @@ const RoleForm: React.FC<RoleFormProps> = ({
             rows={3}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
           />
+        </div>
+
+        <div>
+          <label
+            htmlFor="dashboardType"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Dashboard Type *
+          </label>
+          <select
+            id="dashboardType"
+            value={dashboardType}
+            onChange={(e) => setDashboardType(e.target.value as DashboardType)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            required
+          >
+            <option value={DashboardType.EMPLOYEE}>Employee Dashboard</option>
+            <option value={DashboardType.MANAGER}>Manager Dashboard</option>
+            <option value={DashboardType.HR}>HR Dashboard</option>
+            <option value={DashboardType.ADMIN}>Admin Dashboard</option>
+            <option value={DashboardType.SUPER_ADMIN}>Super Admin Dashboard</option>
+          </select>
+          <p className="mt-1 text-sm text-gray-500">
+            Select the dashboard type that will be shown to users with this role.
+          </p>
         </div>
 
         <div>

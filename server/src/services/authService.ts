@@ -40,9 +40,10 @@ export const loginUser = async (email: string, password: string): Promise<{ user
   try {
     const userRepository = AppDataSource.getRepository(User);
     
-    // Find user by email
+    // Find user by email with role information
     const user = await userRepository.findOne({
       where: { email },
+      relations: ['roleObj'],
     });
     
     if (!user) {
@@ -89,10 +90,10 @@ export const getUserProfile = async (userId: string): Promise<Partial<User>> => 
   try {
     const userRepository = AppDataSource.getRepository(User);
     
-    // Find user by ID
+    // Find user by ID with role information
     const user = await userRepository.findOne({
       where: { id: userId },
-      relations: ['manager'],
+      relations: ['manager', 'roleObj'],
     });
     
     if (!user) {

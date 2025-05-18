@@ -110,9 +110,12 @@ export const login = async (request: Request, h: ResponseToolkit) => {
         .code(400);
     }
 
-    // Find user by email
+    // Find user by email with role information
     const userRepository = AppDataSource.getRepository(User);
-    const user = await userRepository.findOne({ where: { email } });
+    const user = await userRepository.findOne({ 
+      where: { email },
+      relations: ['roleObj']
+    });
 
     if (!user) {
       return h.response({ message: "Invalid email or password" }).code(401);
@@ -138,6 +141,11 @@ export const login = async (request: Request, h: ResponseToolkit) => {
     // Generate JWT token
     const token = generateToken(user);
 
+    // Set dashboard type based on role
+    if (user.roleObj) {
+      user.setDashboardType();
+    }
+
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 
@@ -149,6 +157,8 @@ export const login = async (request: Request, h: ResponseToolkit) => {
       teamLeadId: user.teamLeadId,
       department: user.department,
       position: user.position,
+      dashboardType: user.dashboardType,
+      roleObj: user.roleObj,
     };
 
     return h
@@ -176,14 +186,20 @@ export const getProfile = async (request: Request, h: ResponseToolkit) => {
 
     const userId = request.auth.credentials.id;
 
-    // Find user by ID
+    // Find user by ID with role information
     const userRepository = AppDataSource.getRepository(User);
     const user = await userRepository.findOne({
       where: { id: userId as string },
+      relations: ['roleObj'],
     });
 
     if (!user) {
       return h.response({ message: "User not found" }).code(404);
+    }
+
+    // Set dashboard type based on role
+    if (user.roleObj) {
+      user.setDashboardType();
     }
 
     // Remove password from response
@@ -197,6 +213,8 @@ export const getProfile = async (request: Request, h: ResponseToolkit) => {
       teamLeadId: user.teamLeadId,
       department: user.department,
       position: user.position,
+      dashboardType: user.dashboardType,
+      roleObj: user.roleObj,
     };
 
     return h

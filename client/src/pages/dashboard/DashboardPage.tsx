@@ -9,23 +9,30 @@ import Card from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
 import Alert from "../../components/ui/Alert";
 import { formatDate } from "../../utils/dateUtils";
-import { Link, Navigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import HRDashboardPage from "./HRDashboardPage";
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [error, setError] = useState<string | null>(null);
-
-  // Redirect based on role
-  if (user?.role === "super_admin") {
-    return <Navigate to="/super-admin-dashboard" replace />;
+  
+  // If user doesn't exist, show loading
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      </div>
+    );
   }
-
-  if (user?.role === "hr") {
+  
+  // Determine dashboard type without state
+  const dashboardType = user.dashboardType || user.role || 'employee';
+  const isManager = dashboardType === "manager";
+  
+  // Render HR dashboard if needed
+  if (dashboardType === "hr") {
     return <HRDashboardPage />;
   }
-
-  const isManager = user?.role === "manager" || user?.role === "team_lead";
 
   // Fetch dashboard data based on user role
   const { data: employeeDashboard, isLoading: isEmployeeLoading } = useQuery({

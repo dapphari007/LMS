@@ -8,11 +8,14 @@ import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
 
+import { DashboardType } from "../../components/forms/RoleForm";
+
 interface Role {
   id: string;
   name: string;
   description: string;
   permissions: string[];
+  dashboardType?: DashboardType;
 }
 
 const RolesPage: React.FC = () => {
@@ -150,6 +153,11 @@ const RolesPage: React.FC = () => {
         />
       )}
       
+      <Alert
+        type="warning"
+        message="Currently Roles cannot be created - still under development"
+      />
+      
       {showCliInfo && (
         <Card>
           <div className="p-6">
@@ -262,6 +270,9 @@ const RolesPage: React.FC = () => {
                     Description
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Dashboard Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Permissions
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -280,6 +291,19 @@ const RolesPage: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-500">
                         {role.description}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm">
+                        {role.dashboardType ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {role.dashboardType.charAt(0).toUpperCase() + role.dashboardType.slice(1)} Dashboard
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-500">
+                            Employee Dashboard
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">

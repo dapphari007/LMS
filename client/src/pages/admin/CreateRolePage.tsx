@@ -5,7 +5,7 @@ import config from "../../config";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
-import RoleForm from "../../components/forms/RoleForm";
+import RoleForm, { DashboardType } from "../../components/forms/RoleForm";
 
 const CreateRolePage: React.FC = () => {
   const navigate = useNavigate();
@@ -16,6 +16,7 @@ const CreateRolePage: React.FC = () => {
     name: string;
     description: string;
     permissions: any;
+    dashboardType: DashboardType;
   }) => {
     setLoading(true);
     setError(null);
@@ -27,6 +28,7 @@ const CreateRolePage: React.FC = () => {
           name: formData.name,
           description: formData.description,
           permissions: formData.permissions,
+          dashboardType: formData.dashboardType,
           isActive: true,
         },
         {

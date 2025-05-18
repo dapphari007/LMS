@@ -8,6 +8,14 @@ import {
 } from "typeorm";
 import { User } from "./User";
 
+export enum DashboardType {
+  EMPLOYEE = "employee",
+  MANAGER = "manager",
+  HR = "hr",
+  ADMIN = "admin",
+  SUPER_ADMIN = "super_admin",
+}
+
 @Entity("roles")
 export class Role {
   @PrimaryGeneratedColumn("uuid")
@@ -27,6 +35,14 @@ export class Role {
 
   @Column({ default: false })
   isSystem: boolean;
+
+  @Column({
+    type: "enum",
+    enum: DashboardType,
+    default: DashboardType.EMPLOYEE,
+    nullable: true
+  })
+  dashboardType: DashboardType;
 
   @CreateDateColumn()
   createdAt: Date;

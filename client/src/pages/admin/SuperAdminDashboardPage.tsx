@@ -69,13 +69,24 @@ const SuperAdminDashboardPage: React.FC = () => {
         }
       } catch (error) {
         console.error("Error fetching user stats:", error);
+        // Set default stats on error
+        setUserStats({
+          total: 0,
+          active: 0,
+          managers: 0,
+          employees: 0,
+          hr: 0,
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchUserStats();
-  }, []);
+    // Only fetch stats if the user is a super admin or admin
+    if (userProfile && (userProfile.role === "super_admin" || userProfile.role === "admin")) {
+      fetchUserStats();
+    }
+  }, [userProfile]);
 
   if (!userProfile || (userProfile.role !== "super_admin" && userProfile.role !== "admin")) {
     return (
@@ -296,12 +307,19 @@ const SuperAdminDashboardPage: React.FC = () => {
 
 // Pending Leave Requests Section Component
 const PendingLeaveRequestsSection: React.FC = () => {
+  const { userProfile } = useAuth();
+  
   // Fetch pending leave requests that need approval
   const { data, isLoading } = useQuery({
     queryKey: ["pendingApprovalRequests"],
     queryFn: () => getTeamLeaveRequests({
       status: "pending_approval", // This fetches both pending and partially_approved
     }),
+    enabled: !!userProfile && (userProfile.role === "super_admin" || userProfile.role === "admin"),
+    retry: 1,
+    onError: (error) => {
+      console.error("Error fetching pending leave requests:", error);
+    }
   });
 
   // Helper function to render leave status badge
@@ -406,6 +424,7 @@ const PendingLeaveRequestsSection: React.FC = () => {
 
 // Leave Balances Section Component
 const LeaveBalancesSection: React.FC = () => {
+  const { userProfile } = useAuth();
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [searchTerm, setSearchTerm] = useState<string>("");
 
@@ -413,6 +432,11 @@ const LeaveBalancesSection: React.FC = () => {
   const { data: leaveBalancesData, isLoading } = useQuery({
     queryKey: ["allLeaveBalances", year],
     queryFn: () => getAllLeaveBalances({ year }),
+    enabled: !!userProfile && (userProfile.role === "super_admin" || userProfile.role === "admin"),
+    retry: 1,
+    onError: (error) => {
+      console.error("Error fetching leave balances:", error);
+    }
   });
 
   const leaveBalances = leaveBalancesData || [];

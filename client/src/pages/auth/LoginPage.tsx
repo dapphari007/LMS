@@ -173,44 +173,7 @@ const LoginPage: React.FC = () => {
         </div>
       </form>
 
-      <div className="mt-6">
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            Don't have an account?{" "}
-            <Link
-              to="/register"
-              className="font-medium text-primary-600 hover:text-primary-500 transition-colors duration-200"
-            >
-              Sign up
-            </Link>
-          </p>
-          <p className="text-sm text-gray-600 mt-2">
-            Super Administrator?{" "}
-            <Link
-              to="/super-admin"
-              className="font-medium text-primary-600 hover:text-primary-500 transition-colors duration-200"
-            >
-              Login here
-            </Link>
-            {" | "}
-            <Link
-              to="/super-admin-info"
-              className="font-medium text-primary-600 hover:text-primary-500 transition-colors duration-200"
-            >
-              Get credentials
-            </Link>
-          </p>
-          <p className="text-sm text-gray-600 mt-2">
-            Having trouble?{" "}
-            <Link
-              to="/login-debug"
-              className="font-medium text-primary-600 hover:text-primary-500 transition-colors duration-200"
-            >
-              Debug login
-            </Link>
-          </p>
-        </div>
-      </div>
+
     </AuthLayout>
   );
 };

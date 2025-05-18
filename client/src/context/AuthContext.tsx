@@ -31,6 +31,14 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Helper function to get dashboard type
+const getDashboardType = (user: any, fallback: string = 'employee'): string => {
+  if (user.dashboardType) return user.dashboardType;
+  if (user.roleObj && user.roleObj.dashboardType) return user.roleObj.dashboardType;
+  if (user.role) return user.role;
+  return fallback;
+};
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
@@ -65,8 +73,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               teamLeadId: parsedUser.teamLeadId || null,
               department: parsedUser.department || null,
               position: parsedUser.position || null,
+              dashboardType: parsedUser.dashboardType || parsedUser.role || 'employee',
             };
             
+            console.log("AuthContext - Restored user from localStorage:", userWithAllFields);
             setUser(userWithAllFields);
 
             // Fetch full user profile
@@ -74,6 +84,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               const response = await getProfile();
               if (response.user) {
                 // Make sure the profile includes all the necessary fields
+                const dashboardType = getDashboardType(response.user, userWithAllFields.dashboardType);
+                
                 const fullProfile = {
                   ...response.user,
                   managerId: response.user.managerId || userWithAllFields.managerId,
@@ -81,6 +93,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                   teamLeadId: response.user.teamLeadId || userWithAllFields.teamLeadId,
                   department: response.user.department || userWithAllFields.department,
                   position: response.user.position || userWithAllFields.position,
+                  dashboardType: dashboardType,
                 };
                 
                 setUserProfile(fullProfile);
@@ -93,6 +106,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                   teamLeadId: fullProfile.teamLeadId,
                   department: fullProfile.department,
                   position: fullProfile.position,
+                  dashboardType: fullProfile.dashboardType,
                 };
                 
                 localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -130,6 +144,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       teamLeadId: response.user.teamLeadId || null,
       department: response.user.department || null,
       position: response.user.position || null,
+      dashboardType: getDashboardType(response.user),
     };
 
     localStorage.setItem("token", response.token);
@@ -142,6 +157,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const profileResponse = await getProfile();
       if (profileResponse.user) {
         // Make sure the profile includes all the necessary fields
+        const dashboardType = getDashboardType(profileResponse.user, userWithAllFields.dashboardType);
+        
         const fullProfile = {
           ...profileResponse.user,
           managerId: profileResponse.user.managerId || userWithAllFields.managerId,
@@ -149,6 +166,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           teamLeadId: profileResponse.user.teamLeadId || userWithAllFields.teamLeadId,
           department: profileResponse.user.department || userWithAllFields.department,
           position: profileResponse.user.position || userWithAllFields.position,
+          dashboardType: dashboardType,
         };
         
         setUserProfile(fullProfile);
@@ -161,6 +179,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           teamLeadId: fullProfile.teamLeadId,
           department: fullProfile.department,
           position: fullProfile.position,
+          dashboardType: fullProfile.dashboardType,
         };
         
         localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -187,6 +206,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     if (response.user) {
       // Make sure the profile includes all the necessary fields
+      const dashboardType = getDashboardType(response.user);
+      
       const fullProfile = {
         ...response.user,
         managerId: response.user.managerId || null,
@@ -194,6 +215,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         teamLeadId: response.user.teamLeadId || null,
         department: response.user.department || null,
         position: response.user.position || null,
+        dashboardType: dashboardType,
       };
       
       setUserProfile(fullProfile);
@@ -209,6 +231,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           teamLeadId: fullProfile.teamLeadId,
           department: fullProfile.department,
           position: fullProfile.position,
+          dashboardType: fullProfile.dashboardType,
         };
 
         localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -226,6 +249,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const response = await getProfile();
       if (response.user) {
         // Make sure the profile includes all the necessary fields
+        const dashboardType = getDashboardType(response.user);
+        
         const fullProfile = {
           ...response.user,
           managerId: response.user.managerId || null,
@@ -233,6 +258,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           teamLeadId: response.user.teamLeadId || null,
           department: response.user.department || null,
           position: response.user.position || null,
+          dashboardType: dashboardType,
         };
         
         setUserProfile(fullProfile);
@@ -246,6 +272,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             teamLeadId: fullProfile.teamLeadId,
             department: fullProfile.department,
             position: fullProfile.position,
+            dashboardType: fullProfile.dashboardType,
           };
           
           localStorage.setItem("user", JSON.stringify(updatedUser));
