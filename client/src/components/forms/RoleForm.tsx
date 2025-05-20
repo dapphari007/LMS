@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Button from "../ui/Button";
 
+
 interface PermissionSection {
   [key: string]: {
     create: boolean;
@@ -247,7 +248,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
         >
           Cancel
         </Button>
-        <Button type="submit" variant="primary" loading={loading}>
+        <Button type="submit" variant="primary" isLoading={loading}>
           {isEditing ? "Update Role" : "Create Role"}
         </Button>
       </div>

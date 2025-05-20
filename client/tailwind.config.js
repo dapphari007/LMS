@@ -63,6 +63,25 @@ export default {
         dropdown:
           "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
       },
+      animation: {
+        fadeIn: 'fadeIn 0.5s ease-in-out',
+        slideUp: 'slideUp 0.3s ease-out',
+        pulse: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideUp: {
+          '0%': { transform: 'translateY(10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        pulse: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '.5' },
+        },
+      },
     },
   },
   plugins: [],
@@ -70,7 +89,7 @@ export default {
   safelist: [
     // Add any classes that might be dynamically generated
     {
-      pattern: /(bg|text|border|shadow|rounded)-./,
+      pattern: /(bg|text|border|shadow|rounded|animate)-./,
     },
   ],
 };

@@ -10,12 +10,6 @@ import ErrorBoundary from "./components/ErrorBoundary";
 
 // Auth Pages
 import LoginPage from "./pages/auth/LoginPage";
-import RegisterPage from "./pages/auth/RegisterPage";
-import SuperAdminLoginPage from "./pages/auth/SuperAdminLoginPage";
-import SuperAdminLoginInfo from "./pages/auth/SuperAdminLoginInfo";
-import LoginDebugger from "./pages/auth/LoginDebugger";
-import CreateSuperAdmin from "./pages/auth/CreateSuperAdmin";
-import SimpleLoginForm from "./pages/auth/SimpleLoginForm";
 
 // Dashboard Pages
 import DashboardPage from "./pages/dashboard/DashboardPage";
@@ -42,13 +36,10 @@ import HolidaysPage from "./pages/admin/HolidaysPage";
 import CreateHolidayPage from "./pages/admin/CreateHolidayPage";
 import EditHolidayPage from "./pages/admin/EditHolidayPage";
 import LeaveBalancesPage from "./pages/admin/LeaveBalancesPage";
-import ApprovalWorkflowsPage from "./pages/admin/ApprovalWorkflowsPage";
 import CreateApprovalWorkflowPage from "./pages/admin/CreateApprovalWorkflowPage";
 import EditApprovalWorkflowPage from "./pages/admin/EditApprovalWorkflowPage";
-import WorkflowCategoriesPage from "./pages/admin/WorkflowCategoriesPage";
 import CreateWorkflowCategoryPage from "./pages/admin/CreateWorkflowCategoryPage";
 import EditWorkflowCategoryPage from "./pages/admin/EditWorkflowCategoryPage";
-import ApproverTypesPage from "./pages/admin/ApproverTypesPage";
 import CreateApproverTypePage from "./pages/admin/CreateApproverTypePage";
 import EditApproverTypePage from "./pages/admin/EditApproverTypePage";
 import ApprovalManagementPage from "./pages/admin/ApprovalManagementPage";
@@ -79,19 +70,6 @@ const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
-  },
-  {
-    path: "/super-admin",
-    element: <SuperAdminLoginPage />,
-  },
-  // Routes for register, super-admin-info, and login-debug have been removed
-  {
-    path: "/create-super-admin",
-    element: <CreateSuperAdmin />,
-  },
-  {
-    path: "/simple-login",
-    element: <SimpleLoginForm />,
   },
 
   // Protected Routes - All Users except super_admin

@@ -17,7 +17,12 @@ export interface User {
   address?: string;
   role: "super_admin" | "employee" | "team_lead" | "manager" | "admin" | "hr";
   roleId?: string; // Added for custom roles
-  roleObj?: { id: string; name: string; dashboardType?: DashboardType }; // Added for role object reference
+  roleObj?: { 
+    id: string; 
+    name: string; 
+    dashboardType?: DashboardType;
+    permissions?: string[]; // Added for role permissions
+  }; 
   level: number;
   gender?: "male" | "female" | "other";
   isActive: boolean;
@@ -38,7 +43,12 @@ export interface AuthUser {
   email: string;
   role: "super_admin" | "employee" | "team_lead" | "manager" | "admin" | "hr";
   roleId?: string; // Added for custom roles
-  roleObj?: { id: string; name: string; dashboardType?: DashboardType }; // Added for role object reference
+  roleObj?: { 
+    id: string; 
+    name: string; 
+    dashboardType?: DashboardType;
+    permissions?: string[]; // Added for role permissions
+  }; 
   level: number;
   managerId?: string;
   hrId?: string;

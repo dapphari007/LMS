@@ -3,6 +3,7 @@ import { WorkflowCategory } from "../models/WorkflowCategory";
 import logger from "../utils/logger";
 import path from "path";
 import fs from "fs";
+import { DataSource } from "typeorm";
 
 /**
  * Rebuild TypeORM metadata by reloading all entity files
@@ -23,7 +24,7 @@ const rebuildTypeOrmMetadata = async (): Promise<void> => {
     });
     
     // Create a new DataSource with the modified configuration
-    const newDataSource = new AppDataSource.constructor(modifiedDataSource);
+    const newDataSource = new DataSource(modifiedDataSource);
     
     // Initialize the new DataSource
     await newDataSource.initialize();

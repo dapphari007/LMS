@@ -56,9 +56,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     } else {
       const isDirectlyAllowed = allowedRoles.includes(user.role);
       const hasCustomAdminRole = checkCustomRoles && 
-        user.roleObj && 
-        user.roleObj.permissions && 
-        user.roleObj.permissions.includes('admin');
+        user.roleObj?.permissions?.includes('admin');
       
       if (!isDirectlyAllowed && !hasCustomAdminRole) {
         console.log("ProtectedRoute - User role not allowed:", user.role, "Allowed roles:", allowedRoles);

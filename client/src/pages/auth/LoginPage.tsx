@@ -3,19 +3,24 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { LoginCredentials } from "../../types";
 import { useAuth } from "../../context/AuthContext";
+import { LoginResponse } from "../../services/authService";
 import AuthLayout from "../../components/layout/AuthLayout";
-import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
 import { getErrorMessage } from "../../utils/errorUtils";
-import { FaGoogle, FaGithub } from "react-icons/fa";
+import { FaGoogle, FaGithub, FaEnvelope, FaLock } from "react-icons/fa";
+
+// Extend LoginCredentials to include rememberMe
+interface ExtendedLoginCredentials extends LoginCredentials {
+  rememberMe?: boolean;
+}
 
 const LoginPage: React.FC = () => {
   const {
     register,
     handleSubmit,
-    formState: { errors },
-  } = useForm<LoginCredentials>();
+    formState: { errors, isSubmitting },
+  } = useForm<ExtendedLoginCredentials>();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -25,12 +30,18 @@ const LoginPage: React.FC = () => {
   // Get the intended destination from location state, or default to home
   const from = location.state?.from?.pathname || "/";
 
-  const onSubmit = async (data: LoginCredentials) => {
+  const onSubmit = async (data: ExtendedLoginCredentials): Promise<void> => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await login(data);
+      // Extract only the fields needed for login
+      const loginData: LoginCredentials = {
+        email: data.email,
+        password: data.password
+      };
+      
+      const response: LoginResponse = await login(loginData);
 
       // Check if the user is a super admin
       if (response.user && response.user.role === "super_admin") {
@@ -47,9 +58,10 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
+  const handleSocialLogin = (provider: "google" | "github"): void => {
     // Implement social login logic here
     console.log(`Logging in with ${provider}`);
+    // This would typically call an API endpoint or use a library like Firebase Auth
   };
 
   return (
@@ -58,47 +70,75 @@ const LoginPage: React.FC = () => {
       subtitle="Sign in to your account to continue"
     >
       {error && (
-        <Alert
-          variant="error"
-          message={error}
-          onClose={() => setError(null)}
-          className="mb-4"
-        />
-      )}
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div>
-          <Input
-            id="email"
-            type="email"
-            label="Email address"
-            autoComplete="email"
-            error={errors.email?.message}
-            {...register("email", {
-              required: "Email is required",
-              pattern: {
-                value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-                message: "Invalid email address",
-              },
-            })}
+        <div className="animate-fadeIn">
+          <Alert
+            variant="error"
+            message={error}
+            onClose={() => setError(null)}
+            className="mb-6"
           />
         </div>
+      )}
 
-        <div>
-          <Input
-            id="password"
-            type="password"
-            label="Password"
-            autoComplete="current-password"
-            error={errors.password?.message}
-            {...register("password", {
-              required: "Password is required",
-              minLength: {
-                value: 8,
-                message: "Password must be at least 8 characters",
-              },
-            })}
-          />
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 animate-slideUp">
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email address
+            </label>
+            <div className="relative mt-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FaEnvelope className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                className={`pl-10 block w-full rounded-md border ${errors.email ? 'border-red-500' : 'border-gray-300'} 
+                px-3 py-2 text-gray-900 placeholder-gray-400
+                focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500
+                disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500`}
+                placeholder="you@example.com"
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: {
+                    value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+                    message: "Invalid email address",
+                  },
+                })}
+              />
+              {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <div className="relative mt-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FaLock className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                className={`pl-10 block w-full rounded-md border ${errors.password ? 'border-red-500' : 'border-gray-300'} 
+                px-3 py-2 text-gray-900 placeholder-gray-400
+                focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500
+                disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500`}
+                placeholder="••••••••"
+                {...register("password", {
+                  required: "Password is required",
+                  minLength: {
+                    value: 8,
+                    message: "Password must be at least 8 characters",
+                  },
+                })}
+              />
+              {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-between">
@@ -106,12 +146,12 @@ const LoginPage: React.FC = () => {
             <input
               id="remember-me"
               type="checkbox"
-              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded transition-colors"
               {...register("rememberMe")}
             />
             <label
               htmlFor="remember-me"
-              className="ml-2 block text-sm text-gray-900"
+              className="ml-2 block text-sm text-gray-700 hover:text-gray-900 transition-colors"
             >
               Remember me
             </label>
@@ -120,7 +160,7 @@ const LoginPage: React.FC = () => {
           <div className="text-sm">
             <Link
               to="/forgot-password"
-              className="font-medium text-primary-600 hover:text-primary-500"
+              className="font-medium text-primary-600 hover:text-primary-500 transition-colors"
             >
               Forgot your password?
             </Link>
@@ -131,8 +171,8 @@ const LoginPage: React.FC = () => {
           <Button
             type="submit"
             fullWidth
-            isLoading={isLoading}
-            className="bg-primary-600 hover:bg-primary-700 focus:ring-primary-500"
+            isLoading={isLoading || isSubmitting}
+            className="bg-primary-600 hover:bg-primary-700 focus:ring-primary-500 py-2.5 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
           >
             Sign in
           </Button>
@@ -155,16 +195,16 @@ const LoginPage: React.FC = () => {
               type="button"
               variant="outline"
               onClick={() => handleSocialLogin("google")}
-              className="flex items-center justify-center gap-2"
+              className="flex items-center justify-center gap-2 transition-all duration-200 hover:bg-red-50 hover:border-red-300 shadow-sm"
             >
-              <FaGoogle className="h-5 w-5" />
+              <FaGoogle className="h-5 w-5 text-red-500" />
               <span>Google</span>
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => handleSocialLogin("github")}
-              className="flex items-center justify-center gap-2"
+              className="flex items-center justify-center gap-2 transition-all duration-200 hover:bg-gray-800 hover:text-white hover:border-gray-800 shadow-sm"
             >
               <FaGithub className="h-5 w-5" />
               <span>GitHub</span>
@@ -172,8 +212,6 @@ const LoginPage: React.FC = () => {
           </div>
         </div>
       </form>
-
-
     </AuthLayout>
   );
 };
