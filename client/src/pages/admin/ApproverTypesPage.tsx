@@ -92,12 +92,15 @@ export default function ApproverTypesPage({ isTabContent = false }: ApproverType
       <div className="flex justify-between items-center mb-6">
         {!isTabContent && <h1 className="text-2xl font-bold">Approver Types</h1>}
         <div className={`flex space-x-2 ${isTabContent ? "ml-auto" : ""}`}>
-          <Link
-            to="/approver-types/create"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-          >
-            Create New Approver Type
-          </Link>
+          {/* Only super admins or admins can create new approver types */}
+          {(isSuperAdmin || user?.role === 'admin') && (
+            <Link
+              to="/approver-types/create"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+            >
+              Create New Approver Type
+            </Link>
+          )}
         </div>
       </div>
       
@@ -172,31 +175,36 @@ export default function ApproverTypesPage({ isTabContent = false }: ApproverType
                     {new Date(approverType.createdAt).toLocaleDateString()}
                   </td>
                   <td className="py-3 px-4 flex space-x-2">
-                    <Link
-                      to={`/approver-types/edit/${approverType.id}`}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      Edit
-                    </Link>
-                    <button
-                      onClick={() => handleToggleStatus(approverType.id)}
-                      className={`${
-                        approverType.isActive 
-                          ? 'text-orange-600 hover:text-orange-800' 
-                          : 'text-green-600 hover:text-green-800'
-                      }`}
-                      disabled={toggleStatusMutation.isPending && approverTypeToToggle === approverType.id}
-                    >
-                      {(toggleStatusMutation.isPending && approverTypeToToggle === approverType.id)
-                        ? 'Updating...' 
-                        : (approverType.isActive ? 'Deactivate' : 'Activate')}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClick(approverType.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      Delete
-                    </button>
+                    {/* Only super admins or admins can edit approver types */}
+                    {(isSuperAdmin || user?.role === 'admin') && (
+                      <>
+                        <Link
+                          to={`/approver-types/edit/${approverType.id}`}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          onClick={() => handleToggleStatus(approverType.id)}
+                          className={`${
+                            approverType.isActive 
+                              ? 'text-orange-600 hover:text-orange-800' 
+                              : 'text-green-600 hover:text-green-800'
+                          }`}
+                          disabled={toggleStatusMutation.isPending && approverTypeToToggle === approverType.id}
+                        >
+                          {(toggleStatusMutation.isPending && approverTypeToToggle === approverType.id)
+                            ? 'Updating...' 
+                            : (approverType.isActive ? 'Deactivate' : 'Activate')}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(approverType.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}

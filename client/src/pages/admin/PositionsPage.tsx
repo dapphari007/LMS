@@ -17,6 +17,7 @@ interface Position {
     id: string;
     name: string;
   };
+  departmentName?: string;
 }
 
 const PositionsPage: React.FC = () => {

@@ -102,12 +102,12 @@ const EditPositionPage: React.FC = () => {
     try {
       console.log("Submitting position update with data:", data);
       
-      // If departmentId is empty string, set it to null
-      const departmentId = data.departmentId === "" ? null : data.departmentId;
+      // If departmentId is empty string, set it to undefined (not null)
+      const departmentId = data.departmentId === "" ? undefined : data.departmentId;
       
       await updatePosition(id, {
         name: data.name,
-        description: data.description,
+        description: data.description || undefined, // Convert empty string to undefined
         departmentId: departmentId,
         level: data.level,
         isActive: data.isActive,

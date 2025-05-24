@@ -177,7 +177,7 @@ const RolesPage: React.FC = () => {
                   size="sm" 
                   className="ml-3"
                   onClick={() => runScript('show')}
-                  loading={isRunningScript}
+                  isLoading={isRunningScript}
                 >
                   Run
                 </Button>
@@ -231,7 +231,7 @@ const RolesPage: React.FC = () => {
                       setError("Role name is required");
                     }
                   }}
-                  loading={isRunningScript}
+                  isLoading={isRunningScript}
                   disabled={!quickRoleName.trim()}
                 >
                   Create Role

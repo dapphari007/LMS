@@ -8,7 +8,6 @@ import { createLeaveRequest } from "../../services/leaveRequestService";
 import { getHolidays } from "../../services/holidayService";
 import { CreateLeaveRequestData, LeaveBalance } from "../../types";
 import Card from "../../components/ui/Card";
-import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
 import DatePicker from "../../components/ui/DatePicker";
 import Textarea from "../../components/ui/Textarea";
@@ -41,7 +40,6 @@ const ApplyLeavePage: React.FC = () => {
     register,
     handleSubmit,
     watch,
-    setValue,
     formState: { errors },
   } = useForm<CreateLeaveRequestData>();
   const [error, setError] = useState<string | null>(null);
@@ -68,19 +66,39 @@ const ApplyLeavePage: React.FC = () => {
   }, [leaveBalancesData]);
 
   // Fetch leave types - these are seeded from seed.ts and configurable by super admins
-  const { data: leaveTypesData, isLoading: isLoadingLeaveTypes } = useQuery({
+  const { 
+    data: leaveTypesData, 
+    isLoading: isLoadingLeaveTypes,
+    error: leaveTypesError 
+  } = useQuery({
     queryKey: ["leaveTypes"],
     queryFn: () => getLeaveTypes({ isActive: true }),
-    onError: (err: any) => setError(getErrorMessage(err)),
   });
 
+  // Handle leave types error
+  React.useEffect(() => {
+    if (leaveTypesError) {
+      setError(getErrorMessage(leaveTypesError));
+    }
+  }, [leaveTypesError]);
+
   // Fetch holidays for business days calculation
-  const { data: holidaysData, isLoading: isLoadingHolidays } = useQuery({
+  const { 
+    data: holidaysData, 
+    isLoading: isLoadingHolidays,
+    error: holidaysError 
+  } = useQuery({
     queryKey: ["holidays", new Date().getFullYear()],
     queryFn: () =>
       getHolidays({ year: new Date().getFullYear(), isActive: true }),
-    onError: (err: any) => setError(getErrorMessage(err)),
   });
+  
+  // Handle holidays error
+  React.useEffect(() => {
+    if (holidaysError) {
+      setError(getErrorMessage(holidaysError));
+    }
+  }, [holidaysError]);
 
   // Calculate business days between start and end date
   const calculateDuration = () => {
@@ -164,7 +182,7 @@ const ApplyLeavePage: React.FC = () => {
     setError(null);
 
     try {
-      const response = await createLeaveRequest(data);
+      await createLeaveRequest(data);
       navigate("/my-leaves", {
         state: { message: "Leave request submitted successfully" },
       });
@@ -363,7 +381,7 @@ const ApplyLeavePage: React.FC = () => {
                   isLoadingLeaveTypes || 
                   isLoadingHolidays || 
                   !!warning || // Disable button when out of balance
-                  (duration > 0 && leaveTypeId && leaveBalancesData?.leaveBalances && (() => {
+                  !!(duration > 0 && leaveTypeId && leaveBalancesData?.leaveBalances && (() => {
                     const selectedBalance = leaveBalancesData.leaveBalances.find(
                       balance => balance.leaveTypeId === leaveTypeId
                     );

@@ -7,13 +7,14 @@ import {
 } from "@heroicons/react/24/solid";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 
-interface AlertProps {
+export interface AlertProps {
   variant?: "success" | "warning" | "error" | "info";
   type?: "success" | "warning" | "error" | "info"; // For backward compatibility
   title?: string;
   message: string;
   onClose?: () => void;
   className?: string;
+  action?: React.ReactNode;
 }
 
 const Alert: React.FC<AlertProps> = ({
@@ -23,6 +24,7 @@ const Alert: React.FC<AlertProps> = ({
   message,
   onClose,
   className = "",
+  action,
 }) => {
   // Use type prop if variant is not provided (for backward compatibility)
   const actualVariant = type || variant;
@@ -61,6 +63,11 @@ const Alert: React.FC<AlertProps> = ({
           <div className="text-sm">
             <p>{message}</p>
           </div>
+          {action && (
+            <div className="mt-2">
+              {action}
+            </div>
+          )}
         </div>
         {onClose && (
           <div className="ml-auto pl-3">

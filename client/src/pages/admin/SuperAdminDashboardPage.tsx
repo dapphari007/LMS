@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { UserRole } from "../../types";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
@@ -99,7 +98,6 @@ const SuperAdminDashboardPage: React.FC = () => {
     );
   }
   
-  const isAdmin = userProfile.role === "admin";
   const isSuperAdmin = userProfile.role === "super_admin";
 
   return (
@@ -310,17 +308,21 @@ const PendingLeaveRequestsSection: React.FC = () => {
   const { userProfile } = useAuth();
   
   // Fetch pending leave requests that need approval
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["pendingApprovalRequests"],
     queryFn: () => getTeamLeaveRequests({
       status: "pending_approval", // This fetches both pending and partially_approved
     }),
     enabled: !!userProfile && (userProfile.role === "super_admin" || userProfile.role === "admin"),
     retry: 1,
-    onError: (error) => {
+  });
+  
+  // Log any errors that occur during the query
+  React.useEffect(() => {
+    if (error) {
       console.error("Error fetching pending leave requests:", error);
     }
-  });
+  }, [error]);
 
   // Helper function to render leave status badge
   const renderStatusBadge = (status: string, metadata?: any) => {
@@ -429,15 +431,19 @@ const LeaveBalancesSection: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
 
   // Fetch leave balances
-  const { data: leaveBalancesData, isLoading } = useQuery({
+  const { data: leaveBalancesData, isLoading, error } = useQuery({
     queryKey: ["allLeaveBalances", year],
     queryFn: () => getAllLeaveBalances({ year }),
     enabled: !!userProfile && (userProfile.role === "super_admin" || userProfile.role === "admin"),
-    retry: 1,
-    onError: (error) => {
+    retry: 1
+  });
+  
+  // Handle error with useEffect
+  React.useEffect(() => {
+    if (error) {
       console.error("Error fetching leave balances:", error);
     }
-  });
+  }, [error]);
 
   const leaveBalances = leaveBalancesData || [];
 

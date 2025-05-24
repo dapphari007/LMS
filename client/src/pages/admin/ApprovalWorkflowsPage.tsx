@@ -32,7 +32,7 @@ export default function ApprovalWorkflowsPage({ isTabContent = false }: Approval
     error,
   } = useQuery({
     queryKey: ["approvalWorkflows"],
-    queryFn: getAllApprovalWorkflows,
+    queryFn: () => getAllApprovalWorkflows(),
   });
 
   const deleteMutation = useMutation({

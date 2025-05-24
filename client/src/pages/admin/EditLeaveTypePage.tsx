@@ -41,7 +41,7 @@ export default function EditLeaveTypePage() {
   console.log("EditLeaveTypePage - Leave type:", leaveType);
 
   // Check if balances already exist for this leave type
-  const { data: balanceData, isLoading: isCheckingBalances } = useQuery({
+  const { data: balanceData } = useQuery({
     queryKey: ["leaveTypeBalances", id, currentYear],
     queryFn: () => checkLeaveTypeBalances(id as string, currentYear),
     enabled: !!id && !!leaveType,
@@ -95,6 +95,9 @@ export default function EditLeaveTypePage() {
     mutationFn: (data: Partial<FormValues>) =>
       updateLeaveType(id as string, data),
     onSuccess: () => {
+      // Invalidate queries related to leave types
+      queryClient.invalidateQueries({ queryKey: ["leaveTypes"] });
+      queryClient.invalidateQueries({ queryKey: ["leaveType", id] });
       navigate("/leave-types");
     },
     onError: (err: any) => {
@@ -106,6 +109,8 @@ export default function EditLeaveTypePage() {
   const createLeaveBalancesMutation = useMutation({
     mutationFn: bulkCreateLeaveBalances,
     onSuccess: () => {
+      // Invalidate the leave balances query to reflect the new data
+      queryClient.invalidateQueries({ queryKey: ["leaveTypeBalances", id, currentYear] });
       setSuccessMessage(
         `Leave balances created successfully for all users for year ${currentYear}`
       );

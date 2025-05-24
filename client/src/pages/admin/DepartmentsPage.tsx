@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import config from "../../config";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { PlusIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -47,12 +47,16 @@ const DepartmentsPage: React.FC = () => {
       
       // Fallback if the structure is different
       return Array.isArray(response.data) ? response.data : [];
-    },
-    onError: (error) => {
-      console.error("Error fetching departments:", error);
-      setError("Failed to load departments. Please try again later.");
     }
   });
+  
+  // Handle query error separately
+  React.useEffect(() => {
+    if (queryError) {
+      console.error("Error fetching departments:", queryError);
+      setError("Failed to load departments. Please try again later.");
+    }
+  }, [queryError]);
 
   const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this department?")) {

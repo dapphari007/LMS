@@ -83,7 +83,7 @@ const UsersPage: React.FC = () => {
   }, [sortOrder]);
 
   // Fetch users
-  const { data, refetch } = useQuery({
+  const { data, refetch, error: queryError } = useQuery({
     queryKey: ["users", selectedRole, selectedStatus],
     queryFn: () => {
       // Determine if we're using a legacy role name or a new role ID
@@ -103,9 +103,15 @@ const UsersPage: React.FC = () => {
       }
       
       return getUsers(params);
-    },
-    onError: (err: any) => setError(getErrorMessage(err)),
+    }
   });
+  
+  // Handle query errors
+  useEffect(() => {
+    if (queryError) {
+      setError(getErrorMessage(queryError));
+    }
+  }, [queryError]);
 
   // Handle activate/deactivate user
   const handleToggleUserStatus = async (id: string, isActive: boolean) => {
@@ -227,7 +233,7 @@ const UsersPage: React.FC = () => {
   };
   
   // Helper function to determine badge variant based on role
-  const getBadgeVariant = (role: string): string => {
+  const getBadgeVariant = (role: string): 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'default' => {
     switch (role.toLowerCase()) {
       case "super_admin":
         return "primary";

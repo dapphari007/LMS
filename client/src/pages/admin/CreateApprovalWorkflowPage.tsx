@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createApprovalWorkflow } from "../../services/approvalWorkflowService";
 import { getAllUsers } from "../../services/userService";
-import { getAllWorkflowCategories } from "../../services/workflowCategoryService";
-import { getAllApproverTypes } from "../../services/approverTypeService";
+import { getAllWorkflowCategories, WorkflowCategory } from "../../services/workflowCategoryService";
+import { getAllApproverTypes, ApproverType } from "../../services/approverTypeService";
 
 type FormValues = {
   name: string;
@@ -24,7 +24,7 @@ type FormValues = {
 
 export default function CreateApprovalWorkflowPage() {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<React.ReactNode | null>(null);
   const [useCustomDays, setUseCustomDays] = useState(false);
 
   const { data: users = [] } = useQuery({
@@ -79,7 +79,7 @@ export default function CreateApprovalWorkflowPage() {
 
   useEffect(() => {
     if (watchCategoryId) {
-      const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+      const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId);
       if (selectedCategory) {
         // Update min/max days if not using custom days
         if (!useCustomDays) {
@@ -137,7 +137,7 @@ export default function CreateApprovalWorkflowPage() {
     
     // Check if we've exceeded the maximum steps for the selected category
     if (data.categoryId) {
-      const selectedCategory = categories.find(cat => cat.id === data.categoryId);
+      const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === data.categoryId);
       if (selectedCategory) {
         if (selectedCategory.maxSteps === 0) {
           setError(`This category does not allow any approval steps. Please select a different category.`);
@@ -228,7 +228,7 @@ export default function CreateApprovalWorkflowPage() {
 
   const addStep = () => {
     // Check if we've reached the maximum number of steps for the selected category
-    const selectedCategory = watchCategoryId ? categories.find(cat => cat.id === watchCategoryId) : null;
+    const selectedCategory = watchCategoryId ? categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId) : null;
     const maxSteps = selectedCategory?.maxSteps ?? 10; // Default to 10 if no category selected
     
     // If maxSteps is 0, don't allow adding any steps
@@ -300,7 +300,7 @@ export default function CreateApprovalWorkflowPage() {
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           >
             <option value="">Select a category (optional)</option>
-            {categories.map((category) => (
+            {categories.map((category: WorkflowCategory) => (
               <option key={category.id} value={category.id}>
                 {category.name} ({category.minDays} - {category.maxDays} days, max {category.maxSteps} steps)
               </option>
@@ -383,7 +383,7 @@ export default function CreateApprovalWorkflowPage() {
               {watchCategoryId && (
                 <div className="mt-1">
                   {(() => {
-                    const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                    const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId);
                     if (selectedCategory) {
                       // Determine status color based on current vs max steps
                       const isOverLimit = fields.length > selectedCategory.maxSteps;
@@ -428,13 +428,13 @@ export default function CreateApprovalWorkflowPage() {
               onClick={addStep}
               disabled={(() => {
                 if (!watchCategoryId) return false;
-                const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId);
                 return selectedCategory ? fields.length >= selectedCategory.maxSteps : false;
               })()}
               className={`px-3 py-1 rounded text-sm ${
                 (() => {
                   if (!watchCategoryId) return "bg-green-600 hover:bg-green-700 text-white";
-                  const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                  const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId);
                   return (selectedCategory && fields.length >= selectedCategory.maxSteps) 
                     ? "bg-gray-400 text-white cursor-not-allowed" 
                     : "bg-green-600 hover:bg-green-700 text-white";
@@ -443,7 +443,7 @@ export default function CreateApprovalWorkflowPage() {
             >
               {(() => {
                 if (!watchCategoryId) return "Add Step";
-                const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId);
                 return (selectedCategory && fields.length >= selectedCategory.maxSteps) 
                   ? "Max Steps Reached" 
                   : "Add Step";
@@ -481,7 +481,7 @@ export default function CreateApprovalWorkflowPage() {
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                   >
                     {approverTypes.length > 0 ? (
-                      approverTypes.map((type) => (
+                      approverTypes.map((type: ApproverType) => (
                         <option key={type.id} value={type.code}>
                           {type.name}
                         </option>

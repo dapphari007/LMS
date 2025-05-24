@@ -29,8 +29,6 @@ export const getActiveRoles = async (): Promise<Role[]> => {
       return response;
     } else if (response.roles && Array.isArray(response.roles)) {
       return response.roles;
-    } else if (response.data && Array.isArray(response.data)) {
-      return response.data;
     } else {
       console.error("Unexpected roles response format:", response);
       return [];

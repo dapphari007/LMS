@@ -69,10 +69,6 @@ const CreateUserPage: React.FC = () => {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     retry: 3, // Retry failed requests three times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
-    onError: (error) => {
-      console.error("Failed to load departments:", error);
-      setError("Failed to load departments. Please try refreshing the page.");
-    }
   });
   
   // Fetch positions for the position selection dropdown
@@ -88,10 +84,6 @@ const CreateUserPage: React.FC = () => {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     retry: 3, // Retry failed requests three times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
-    onError: (error) => {
-      console.error("Failed to load positions:", error);
-      setError("Failed to load positions. Please try refreshing the page.");
-    }
   });
 
   // Effect to ensure data is loaded and handle errors
@@ -106,8 +98,14 @@ const CreateUserPage: React.FC = () => {
       refetchPositions();
     }
     
-    // Handle any errors
-    if (departmentsError || positionsError) {
+    // Handle specific errors with detailed messages
+    if (departmentsError) {
+      console.error("Failed to load departments:", departmentsError);
+      setError("Failed to load departments. Please try refreshing the page.");
+    } else if (positionsError) {
+      console.error("Failed to load positions:", positionsError);
+      setError("Failed to load positions. Please try refreshing the page.");
+    } else if (departmentsError && positionsError) {
       setError("Failed to load required data. Please refresh the page and try again.");
     }
   }, [

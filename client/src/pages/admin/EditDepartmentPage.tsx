@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import config from "../../config";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -36,7 +36,7 @@ const EditDepartmentPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch department data
-  const { data: department, isLoading: isLoadingDepartment, error: queryError } = useQuery({
+  const { data: department, isLoading: isLoadingDepartment, error: queryError } = useQuery<Department, Error>({
     queryKey: ["department", id],
     queryFn: async () => {
       try {
@@ -65,18 +65,24 @@ const EditDepartmentPage: React.FC = () => {
       }
     },
     enabled: !!id,
-    onError: (error: any) => {
-      console.error("Error fetching department:", error);
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
+    retry: 1 // Only retry once
+  });
+  
+  // Handle department query error
+  useEffect(() => {
+    if (queryError) {
+      console.error("Error fetching department:", queryError);
+      const axiosError = queryError as AxiosError<{message?: string; error?: string}>;
+      const errorMessage = axiosError.response?.data?.message || 
+                          axiosError.response?.data?.error || 
+                          queryError.message ||
                           "Failed to load department data";
       setError(errorMessage);
-    },
-    retry: 1, // Only retry once
-  });
+    }
+  }, [queryError]);
 
   // Fetch users to select as managers
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
+  const { data: users = [], isLoading: isLoadingUsers, error: usersError } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
       const response = await axios.get(`${config.apiUrl}/users`, {
@@ -85,12 +91,20 @@ const EditDepartmentPage: React.FC = () => {
         },
       });
       return response.data.users || [];
-    },
-    onError: (error) => {
-      console.error("Error fetching users:", error);
-      setError("Failed to load users data");
     }
   });
+  
+  // Handle users query error
+  useEffect(() => {
+    if (usersError) {
+      console.error("Error fetching users:", usersError);
+      const axiosError = usersError as AxiosError<{message?: string; error?: string}>;
+      const errorMessage = axiosError.response?.data?.message || 
+                          axiosError.response?.data?.error || 
+                          "Failed to load users data";
+      setError(errorMessage);
+    }
+  }, [usersError]);
 
   // Set form values when department data is loaded
   useEffect(() => {
@@ -122,10 +136,10 @@ const EditDepartmentPage: React.FC = () => {
       });
 
       // Use the department service instead of direct axios call
-      const updatedDepartment = await updateDepartment(id as string, {
+      const updatedDepartment: Department = await updateDepartment(id as string, {
         name,
-        description: description || null,
-        managerId: managerId || null,
+        description: description || undefined,
+        managerId: managerId || undefined,
         isActive,
       });
 
@@ -140,8 +154,9 @@ const EditDepartmentPage: React.FC = () => {
       console.error("Error updating department:", err);
       
       // Extract more detailed error message if available
-      const errorMessage = err.response?.data?.message || 
-                          err.response?.data?.error || 
+      const axiosError = err as AxiosError<{message?: string; error?: string}>;
+      const errorMessage = axiosError.response?.data?.message || 
+                          axiosError.response?.data?.error || 
                           err.message || 
                           "Failed to update department. Please try again.";
       
@@ -160,12 +175,18 @@ const EditDepartmentPage: React.FC = () => {
   }
 
   if (queryError || (!department && !isLoadingDepartment)) {
+    const axiosError = queryError as AxiosError<{message?: string; error?: string}>;
+    const errorMessage = axiosError?.response?.data?.message || 
+                        axiosError?.response?.data?.error || 
+                        queryError?.message ||
+                        "An error occurred while fetching the department. Please try again later.";
+    
     return (
       <div className="bg-red-50 p-4 rounded-md">
         <h2 className="text-lg font-medium text-red-800">Department not found</h2>
         <p className="mt-2 text-red-700">
           {queryError 
-            ? "An error occurred while fetching the department. Please try again later." 
+            ? errorMessage 
             : "The department you are trying to edit does not exist or you don't have permission to access it."}
         </p>
         <Button 

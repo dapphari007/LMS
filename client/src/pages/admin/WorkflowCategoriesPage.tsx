@@ -7,7 +7,7 @@ import {
   toggleWorkflowCategoryStatus,
   WorkflowCategory,
 } from "../../services/workflowCategoryService";
-import { useAuth } from "../../context/AuthContext";
+
 import Alert from "../../components/ui/Alert";
 
 interface WorkflowCategoriesPageProps {
@@ -21,8 +21,6 @@ export default function WorkflowCategoriesPage({ isTabContent = false }: Workflo
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
-  const { user } = useAuth();
-  const isSuperAdmin = user?.role === 'super_admin';
   const queryClient = useQueryClient();
 
   const {

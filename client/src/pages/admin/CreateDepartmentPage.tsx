@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
 import { useQuery } from "@tanstack/react-query";
+import { GetUsersResponse } from "../../services/userService";
 import { getUsers } from "../../services/userService";
 import { createDepartment } from "../../services/departmentService";
 
@@ -24,23 +25,32 @@ const CreateDepartmentPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch users to select as managers
-  const { data: usersData, isLoading: isLoadingUsers } = useQuery({
+  const { data: usersData, isLoading: isLoadingUsers, error: queryError } = useQuery<GetUsersResponse>({
     queryKey: ["users"],
     queryFn: async () => {
       const response = await getUsers();
       console.log("Users API response:", response);
       return response;
-    },
-    onError: (error) => {
-      console.error("Error fetching users:", error);
-      setError("Failed to load users data");
-    },
-    // Provide a default value in case of error
-    placeholderData: { users: [], count: 0 }
+    }
   });
   
   // Ensure users is always an array
-  const users = Array.isArray(usersData?.users) ? usersData.users : [];
+  const users = usersData?.users || [];
+  
+  // Handle query error
+  useEffect(() => {
+    if (queryError) {
+      console.error("Error fetching users:", queryError);
+      setError("Failed to load users data");
+    }
+  }, [queryError]);
+  
+  // Log successful data loading
+  useEffect(() => {
+    if (usersData) {
+      console.log("Users loaded successfully:", usersData);
+    }
+  }, [usersData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,8 +66,8 @@ const CreateDepartmentPage: React.FC = () => {
 
       const departmentData = {
         name,
-        description: description || null,
-        managerId: managerId || null,
+        ...(description ? { description } : {}),
+        ...(managerId ? { managerId } : {}),
         isActive,
       };
 

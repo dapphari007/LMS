@@ -13,11 +13,7 @@ import { Link } from "react-router-dom";
 import HRDashboardPage from "./HRDashboardPage";
 
 // Import types from the types file
-import { 
-  LeaveBalance as ApiLeaveBalance, 
-  LeaveRequest as ApiLeaveRequest, 
-  Holiday as ApiHoliday,
-  TeamAvailability as ApiTeamAvailability,
+import type { 
   EmployeeDashboard as ApiEmployeeDashboard,
   ManagerDashboard as ApiManagerDashboard
 } from '../../types';
@@ -132,16 +128,18 @@ const DashboardPage: React.FC = () => {
   const { data: employeeDashboard, isLoading: isEmployeeLoading } = useQuery<ApiEmployeeDashboard, Error, EmployeeDashboard>({
     queryKey: ["employeeDashboard"],
     queryFn: getEmployeeDashboard,
-    onError: (err) =>
-      setError(err.message || "Failed to load dashboard data"),
+    onError: (err: Error) => {
+      setError(err.message || "Failed to load dashboard data");
+    },
   } as UseQueryOptions<ApiEmployeeDashboard, Error, EmployeeDashboard>);
 
   const { data: managerDashboard, isLoading: isManagerLoading } = useQuery<ApiManagerDashboard, Error, ManagerDashboard>({
     queryKey: ["managerDashboard"],
     queryFn: getManagerDashboard,
     enabled: isManager,
-    onError: (err) =>
-      setError(err.message || "Failed to load dashboard data"),
+    onError: (err: Error) => {
+      setError(err.message || "Failed to load dashboard data");
+    },
   } as UseQueryOptions<ApiManagerDashboard, Error, ManagerDashboard>);
 
   const isLoading = isEmployeeLoading || (isManager && isManagerLoading);

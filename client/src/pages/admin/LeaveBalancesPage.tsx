@@ -3,12 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getAllLeaveBalances,
   updateLeaveBalance,
-  bulkCreateLeaveBalances,
   checkLeaveTypeBalances,
   createAllLeaveBalancesForAllUsers,
 } from "../../services/leaveBalanceService";
 import { getAllLeaveTypes } from "../../services/leaveTypeService";
-import { getAllUsers } from "../../services/userService";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
 
@@ -34,17 +32,12 @@ export default function LeaveBalancesPage() {
 
   const { data: leaveBalances = [], isLoading: isLoadingBalances } = useQuery({
     queryKey: ["leaveBalances"],
-    queryFn: getAllLeaveBalances,
+    queryFn: () => getAllLeaveBalances(),
   });
 
   const { data: leaveTypes = [] } = useQuery({
     queryKey: ["leaveTypes"],
-    queryFn: getAllLeaveTypes,
-  });
-
-  const { data: users = [] } = useQuery({
-    queryKey: ["users"],
-    queryFn: getAllUsers,
+    queryFn: () => getAllLeaveTypes(),
   });
 
   // Check which leave types already have balances for the current year

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -8,8 +8,8 @@ import {
   ApprovalWorkflow,
 } from "../../services/approvalWorkflowService";
 import { getAllUsers } from "../../services/userService";
-import { getAllWorkflowCategories } from "../../services/workflowCategoryService";
-import { getAllApproverTypes } from "../../services/approverTypeService";
+import { getAllWorkflowCategories, WorkflowCategory } from "../../services/workflowCategoryService";
+import { getAllApproverTypes, ApproverType } from "../../services/approverTypeService";
 
 type FormValues = {
   name: string;
@@ -30,7 +30,7 @@ type FormValues = {
 export default function EditApprovalWorkflowPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<React.ReactNode | null>(null);
 
   const { data: workflow, isLoading: isLoadingWorkflow } = useQuery({
     queryKey: ["approvalWorkflow", id],
@@ -77,7 +77,14 @@ export default function EditApprovalWorkflowPage() {
       console.log("Original workflow data:", workflow);
       
       // Convert approvalLevels from backend to steps format for the form
-      const steps = workflow.approvalLevels?.map((level) => {
+      const steps = workflow.approvalLevels?.map((level: {
+        level: number;
+        roles: string[];
+        approverType?: string;
+        fallbackRoles?: string[];
+        departmentSpecific?: boolean;
+        required?: boolean;
+      }) => {
         console.log("Processing approval level:", level);
         
         // Determine approver type and approverId based on roles
@@ -161,7 +168,7 @@ export default function EditApprovalWorkflowPage() {
   // Update min/max days when category changes
   useEffect(() => {
     if (watchCategoryId) {
-      const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+      const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId);
       if (selectedCategory) {
         // Update the form values with the category's min/max days
         reset({
@@ -221,7 +228,7 @@ export default function EditApprovalWorkflowPage() {
     
     // Check if we've exceeded the maximum steps for the selected category
     if (data.categoryId) {
-      const selectedCategory = categories.find(cat => cat.id === data.categoryId);
+      const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === data.categoryId);
       if (selectedCategory) {
         if (selectedCategory.maxSteps === 0) {
           setError(`This category does not allow any approval steps. Please select a different category.`);
@@ -306,13 +313,13 @@ export default function EditApprovalWorkflowPage() {
       maxDays: data.maxDays,
       approvalLevels: approvalLevels,
       isActive: data.isActive,
-      categoryId: data.categoryId || null
+      categoryId: data.categoryId || undefined
     });
   };
 
   const addStep = () => {
     // Check if we've reached the maximum number of steps for the selected category
-    const selectedCategory = watchCategoryId ? categories.find(cat => cat.id === watchCategoryId) : null;
+    const selectedCategory = watchCategoryId ? categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId) : null;
     const maxSteps = selectedCategory?.maxSteps ?? 10; // Default to 10 if no category selected
     
     // If maxSteps is 0, don't allow adding any steps
@@ -408,7 +415,7 @@ export default function EditApprovalWorkflowPage() {
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           >
             <option value="">Select a category</option>
-            {categories.map((category) => (
+            {categories.map((category: WorkflowCategory) => (
               <option key={category.id} value={category.id}>
                 {category.name} ({category.minDays}-{category.maxDays} days, max {category.maxSteps} steps)
               </option>
@@ -482,7 +489,7 @@ export default function EditApprovalWorkflowPage() {
               {watchCategoryId && (
                 <p className="text-sm text-gray-600">
                   {(() => {
-                    const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                    const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId);
                     if (selectedCategory) {
                       return `Maximum ${selectedCategory.maxSteps} steps allowed for ${selectedCategory.name}`;
                     }
@@ -496,13 +503,13 @@ export default function EditApprovalWorkflowPage() {
               onClick={addStep}
               disabled={(() => {
                 if (!watchCategoryId) return false;
-                const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId);
                 return selectedCategory ? fields.length >= selectedCategory.maxSteps : false;
               })()}
               className={`px-3 py-1 rounded text-sm ${
                 (() => {
                   if (!watchCategoryId) return "bg-green-600 hover:bg-green-700 text-white";
-                  const selectedCategory = categories.find(cat => cat.id === watchCategoryId);
+                  const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId);
                   return (selectedCategory && fields.length >= selectedCategory.maxSteps) 
                     ? "bg-gray-400 text-white cursor-not-allowed" 
                     : "bg-green-600 hover:bg-green-700 text-white";
@@ -542,7 +549,7 @@ export default function EditApprovalWorkflowPage() {
                     })}
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                   >
-                    {approverTypes.map((type) => (
+                    {approverTypes.map((type: ApproverType) => (
                       <option key={type.id} value={type.code}>
                         {type.name}
                       </option>

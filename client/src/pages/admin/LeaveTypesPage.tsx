@@ -7,6 +7,7 @@ import {
   activateLeaveType,
   deactivateLeaveType,
   createLeaveType,
+  GetLeaveTypesResponse,
 } from "../../services/leaveTypeService";
 import {
   bulkCreateLeaveBalances,
@@ -148,15 +149,21 @@ const LeaveTypesPage: React.FC = () => {
   }, []);
 
   // Fetch leave types
-  const { data, refetch } = useQuery({
+  const { data, refetch, error: queryError } = useQuery<GetLeaveTypesResponse, Error>({
     queryKey: ["leaveTypes", selectedStatus],
     queryFn: () =>
       getLeaveTypes({
         isActive:
           selectedStatus !== "all" ? selectedStatus === "active" : undefined,
       }),
-    onError: (err: any) => setError(getErrorMessage(err)),
   });
+  
+  // Handle query error
+  useEffect(() => {
+    if (queryError) {
+      setError(getErrorMessage(queryError));
+    }
+  }, [queryError]);
 
   // Check which leave types already have balances for the current year
   useEffect(() => {
@@ -371,7 +378,7 @@ const LeaveTypesPage: React.FC = () => {
       )}
 
       <Card className="mb-6">
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap justify-between gap-4">
           <div className="w-full sm:w-auto">
             <label
               htmlFor="status"
@@ -390,6 +397,17 @@ const LeaveTypesPage: React.FC = () => {
               <option value="inactive">Inactive</option>
             </select>
           </div>
+          {data?.leaveTypes && data.leaveTypes.length > 0 && isDatabaseFlushed && (
+            <div className="flex items-end">
+              <Button
+                variant="primary"
+                onClick={handleBulkCreateAllBalances}
+                disabled={isProcessingBulkCreate}
+              >
+                {isProcessingBulkCreate ? "Processing..." : "Bulk Create All Balances"}
+              </Button>
+            </div>
+          )}
         </div>
       </Card>
 

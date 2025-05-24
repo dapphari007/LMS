@@ -40,13 +40,22 @@ api.interceptors.response.use(
   }
 );
 
-// Generic GET request
+// Generic GET request with better error handling
 export const get = async <T>(
   url: string,
   config?: AxiosRequestConfig
 ): Promise<T> => {
-  const response: AxiosResponse<T> = await api.get(url, config);
-  return response.data;
+  try {
+    const response: AxiosResponse<T> = await api.get(url, config);
+    return response.data;
+  } catch (error) {
+    console.error(`Error in GET request to ${url}:`, error);
+    if (error instanceof AxiosError && error.response) {
+      console.error(`Response status: ${error.response.status}`);
+      console.error(`Response data:`, error.response.data);
+    }
+    throw error;
+  }
 };
 
 // Generic POST request

@@ -87,7 +87,7 @@ export const getAllLeaveBalances = async (
 
 export const getLeaveBalanceById = async (
   id: string
-): Promise<LeaveBalance> => {
+): Promise<LeaveBalance | null> => {
   const response = await get<{ leaveBalance: any }>(
     `/leave-balances/${id}`
   );

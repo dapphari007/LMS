@@ -5,7 +5,7 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { AuthUser, UpdateProfileData, User, LoginCredentials } from "../types";
+import { AuthUser, UpdateProfileData, User, LoginCredentials, DashboardType } from "../types";
 import {
   getProfile,
   login,
@@ -32,10 +32,18 @@ interface AuthProviderProps {
 }
 
 // Helper function to get dashboard type
-const getDashboardType = (user: any, fallback: string = 'employee'): string => {
-  if (user.dashboardType) return user.dashboardType;
-  if (user.roleObj && user.roleObj.dashboardType) return user.roleObj.dashboardType;
-  if (user.role) return user.role;
+const getDashboardType = (user: any, fallback: DashboardType = 'employee'): DashboardType => {
+  if (user.dashboardType) return user.dashboardType as DashboardType;
+  if (user.roleObj && user.roleObj.dashboardType) return user.roleObj.dashboardType as DashboardType;
+  if (user.role) {
+    // Map role to a valid DashboardType
+    const role = user.role.toLowerCase();
+    if (role === 'super_admin') return 'super_admin';
+    if (role === 'admin') return 'admin';
+    if (role === 'manager') return 'manager';
+    if (role === 'hr') return 'hr';
+    return 'employee';
+  }
   return fallback;
 };
 
@@ -66,14 +74,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             const parsedUser = JSON.parse(storedUser);
             
             // Ensure all necessary fields are included
-            const userWithAllFields = {
+            const userWithAllFields: AuthUser = {
               ...parsedUser,
-              managerId: parsedUser.managerId || null,
-              hrId: parsedUser.hrId || null,
-              teamLeadId: parsedUser.teamLeadId || null,
-              department: parsedUser.department || null,
-              position: parsedUser.position || null,
-              dashboardType: parsedUser.dashboardType || parsedUser.role || 'employee',
+              managerId: parsedUser.managerId || undefined,
+              hrId: parsedUser.hrId || undefined,
+              teamLeadId: parsedUser.teamLeadId || undefined,
+              department: parsedUser.department || undefined,
+              position: parsedUser.position || undefined,
+              dashboardType: parsedUser.dashboardType as DashboardType || getDashboardType(parsedUser),
             };
             
             console.log("AuthContext - Restored user from localStorage:", userWithAllFields);
@@ -86,7 +94,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 // Make sure the profile includes all the necessary fields
                 const dashboardType = getDashboardType(response.user, userWithAllFields.dashboardType);
                 
-                const fullProfile = {
+                const fullProfile: User = {
                   ...response.user,
                   managerId: response.user.managerId || userWithAllFields.managerId,
                   hrId: response.user.hrId || userWithAllFields.hrId,
@@ -99,7 +107,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 setUserProfile(fullProfile);
                 
                 // Update the user with any additional fields from the profile
-                const updatedUser = {
+                const updatedUser: AuthUser = {
                   ...userWithAllFields,
                   managerId: fullProfile.managerId,
                   hrId: fullProfile.hrId,
@@ -137,13 +145,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const response = await login(credentials);
 
     // Ensure all necessary fields are included in the user object
-    const userWithAllFields = {
+    const userWithAllFields: AuthUser = {
       ...response.user,
-      managerId: response.user.managerId || null,
-      hrId: response.user.hrId || null,
-      teamLeadId: response.user.teamLeadId || null,
-      department: response.user.department || null,
-      position: response.user.position || null,
+      managerId: response.user.managerId || undefined,
+      hrId: response.user.hrId || undefined,
+      teamLeadId: response.user.teamLeadId || undefined,
+      department: response.user.department || undefined,
+      position: response.user.position || undefined,
       dashboardType: getDashboardType(response.user),
     };
 
@@ -159,7 +167,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // Make sure the profile includes all the necessary fields
         const dashboardType = getDashboardType(profileResponse.user, userWithAllFields.dashboardType);
         
-        const fullProfile = {
+        const fullProfile: User = {
           ...profileResponse.user,
           managerId: profileResponse.user.managerId || userWithAllFields.managerId,
           hrId: profileResponse.user.hrId || userWithAllFields.hrId,
@@ -172,7 +180,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUserProfile(fullProfile);
         
         // Update the user with any additional fields from the profile
-        const updatedUser = {
+        const updatedUser: AuthUser = {
           ...userWithAllFields,
           managerId: fullProfile.managerId,
           hrId: fullProfile.hrId,
@@ -208,13 +216,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Make sure the profile includes all the necessary fields
       const dashboardType = getDashboardType(response.user);
       
-      const fullProfile = {
+      const fullProfile: User = {
         ...response.user,
-        managerId: response.user.managerId || null,
-        hrId: response.user.hrId || null,
-        teamLeadId: response.user.teamLeadId || null,
-        department: response.user.department || null,
-        position: response.user.position || null,
+        managerId: response.user.managerId || undefined,
+        hrId: response.user.hrId || undefined,
+        teamLeadId: response.user.teamLeadId || undefined,
+        department: response.user.department || undefined,
+        position: response.user.position || undefined,
         dashboardType: dashboardType,
       };
       
@@ -251,13 +259,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // Make sure the profile includes all the necessary fields
         const dashboardType = getDashboardType(response.user);
         
-        const fullProfile = {
+        const fullProfile: User = {
           ...response.user,
-          managerId: response.user.managerId || null,
-          hrId: response.user.hrId || null,
-          teamLeadId: response.user.teamLeadId || null,
-          department: response.user.department || null,
-          position: response.user.position || null,
+          managerId: response.user.managerId || undefined,
+          hrId: response.user.hrId || undefined,
+          teamLeadId: response.user.teamLeadId || undefined,
+          department: response.user.department || undefined,
+          position: response.user.position || undefined,
           dashboardType: dashboardType,
         };
         
@@ -265,7 +273,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         
         // Update the user with any additional fields from the profile
         if (user) {
-          const updatedUser = {
+          const updatedUser: AuthUser = {
             ...user,
             managerId: fullProfile.managerId,
             hrId: fullProfile.hrId,

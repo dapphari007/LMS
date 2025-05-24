@@ -1,23 +1,21 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  getLeaveRequest,
-  updateLeaveRequestStatus,
-  cancelLeaveRequest,
-  deleteLeaveRequest,
-  approveDeleteLeaveRequest,
-  rejectDeleteLeaveRequest,
-} from "../../services/leaveRequestService";
+import { getLeaveRequest } from "../../services/leaveRequestService";
 import { useAuth } from "../../context/AuthContext";
 import { formatDate } from "../../utils/dateUtils";
-import Badge from "../../components/ui/Badge";
+import { renderStatusBadge as renderStatusBadgeUtil, getApprovalLevel as getApprovalLevelUtil, canApproveRequest as canApproveRequestUtil } from "../../utils/leaveStatusUtils";
+import { 
+  useUpdateLeaveStatusMutation,
+  useCancelLeaveMutation,
+  useDeleteLeaveMutation,
+  useApproveDeleteLeaveMutation,
+  useRejectDeleteLeaveMutation
+} from "../../hooks/useLeaveRequestMutations";
 
 export default function ViewLeaveRequestPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
   const [leaveRequest, setLeaveRequest] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,40 +31,23 @@ export default function ViewLeaveRequestPage() {
   const isPartiallyApproved = leaveRequest?.status === "partially_approved";
   const isPendingDeletion = leaveRequest?.status === "pending_deletion";
   
-  // Determine approval level based on role
+  // Get approval level using the shared utility
   const getApprovalLevel = () => {
-    if (isTeamLead) return 1;
-    if (isManager) return 2;
-    if (isHR) return 3;
-    if (isSuperAdmin) return 4;
-    return 0;
+    return getApprovalLevelUtil(user?.role || '');
   };
   
   // Check if current user is eligible to approve at the next level in the workflow
   const canApproveRequest = useMemo(() => {
-    const userApprovalLevel = getApprovalLevel();
+    if (!leaveRequest) return false;
     
-    // If user has no approval level, they can't approve anything
-    if (userApprovalLevel === 0) return false;
-    
-    // Super admins and admins can approve any request
-    if (isSuperAdmin) return true;
-    
-    // For pending requests, only L1 approvers can approve
-    if (isPending) {
-      return userApprovalLevel === 1;
-    }
-    
-    // For partially approved requests, check if the user's level matches the next required level
-    if (isPartiallyApproved && leaveRequest?.metadata) {
-      const currentApprovalLevel = leaveRequest.metadata.currentApprovalLevel || 0;
-      const nextRequiredLevel = currentApprovalLevel + 1;
-      
-      return userApprovalLevel === nextRequiredLevel;
-    }
-    
-    return false;
-  }, [isPending, isPartiallyApproved, leaveRequest, getApprovalLevel, isSuperAdmin]);
+    const hasCustomAdminRole = user?.roleObj?.permissions?.includes('admin') || false;
+    return canApproveRequestUtil(
+      user?.role || '', 
+      hasCustomAdminRole,
+      leaveRequest.status,
+      leaveRequest.metadata
+    );
+  }, [user, leaveRequest]);
 
   useEffect(() => {
     const fetchLeaveRequest = async () => {
@@ -86,94 +67,61 @@ export default function ViewLeaveRequestPage() {
     }
   }, [id]);
 
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ status, comment }: { status: string; comment: string }) =>
-      updateLeaveRequestStatus(id as string, { status, comment }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["teamLeaveRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["myLeaveRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["leaveRequest", id] });
-
+  // Use the shared mutation hooks with proper error handling
+  const updateStatusMutation = useUpdateLeaveStatusMutation(
+    id as string, 
+    () => {
       // Refresh the current leave request data
       getLeaveRequest(id as string).then((response) => {
         setLeaveRequest(response.data);
       });
     },
-    onError: (err: any) => {
-      setError(
-        err.response?.data?.message || "Failed to update leave request status"
-      );
-    },
-  });
+    (err: any) => {
+      setError(err.response?.data?.message || "Failed to update leave request status");
+    }
+  );
 
-  const cancelMutation = useMutation({
-    mutationFn: () => cancelLeaveRequest(id as string),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["myLeaveRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["leaveRequest", id] });
-
+  const cancelMutation = useCancelLeaveMutation(
+    id as string, 
+    () => {
       // Refresh the current leave request data
       getLeaveRequest(id as string).then((response) => {
         setLeaveRequest(response.data);
       });
     },
-    onError: (err: any) => {
+    (err: any) => {
       setError(err.response?.data?.message || "Failed to cancel leave request");
-    },
-  });
+    }
+  );
   
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteLeaveRequest(id as string),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["myLeaveRequests"] });
-      
-      // Navigate back after successful deletion
-      navigate("/my-leaves", { 
-        state: { message: "Leave request deleted successfully. If it was approved, the leave balance has been restored." } 
-      });
-    },
-    onError: (err: any) => {
+  const deleteMutation = useDeleteLeaveMutation(
+    id as string,
+    undefined,
+    (err: any) => {
       setError(err.response?.data?.message || "Failed to delete leave request");
-    },
-  });
+    }
+  );
   
-  const approveDeleteMutation = useMutation({
-    mutationFn: () => approveDeleteLeaveRequest(id as string, approvalComment || undefined),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["myLeaveRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["teamLeaveRequests"] });
-      
-      // Navigate back after successful approval
-      navigate("/team-leaves", { 
-        state: { message: "Leave deletion request approved successfully. The leave balance has been restored." } 
-      });
-    },
-    onError: (err: any) => {
+  const approveDeleteMutation = useApproveDeleteLeaveMutation(
+    id as string,
+    undefined,
+    (err: any) => {
       setError(err.response?.data?.message || "Failed to approve leave deletion");
-    },
-  });
+    }
+  );
   
-  const rejectDeleteMutation = useMutation({
-    mutationFn: () => rejectDeleteLeaveRequest(id as string, approvalComment || undefined),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["myLeaveRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["teamLeaveRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["leaveRequest", id] });
-      
+  const rejectDeleteMutation = useRejectDeleteLeaveMutation(
+    id as string, 
+    () => {
       // Refresh the current leave request data
       getLeaveRequest(id as string).then((response) => {
         setLeaveRequest(response.data);
       });
     },
-    onError: (err: any) => {
+    (err: any) => {
       setError(err.response?.data?.message || "Failed to reject leave deletion");
-    },
-  });
+    }
+  );
 
   const handleApprove = () => {
     updateStatusMutation.mutate({
@@ -201,48 +149,18 @@ export default function ViewLeaveRequestPage() {
   
   const handleApproveDelete = () => {
     if (window.confirm('Are you sure you want to approve this leave deletion request? This will permanently delete the leave request and restore the leave balance.')) {
-      approveDeleteMutation.mutate();
+      approveDeleteMutation.mutate(approvalComment || undefined);
     }
   };
   
   const handleRejectDelete = () => {
     if (window.confirm('Are you sure you want to reject this leave deletion request? The leave request will be restored to its original status.')) {
-      rejectDeleteMutation.mutate();
+      rejectDeleteMutation.mutate(approvalComment || undefined);
     }
   };
 
-  const renderStatusBadge = (status: string, metadata?: any) => {
-    // If it's partially approved and has metadata, show the approval level status
-    if (status === "partially_approved" && metadata) {
-      const currentLevel = metadata.currentApprovalLevel || 0;
-      const requiredLevels = metadata.requiredApprovalLevels || [];
-      const maxLevel = Math.max(...requiredLevels);
-      
-      return (
-        <div className="flex flex-col items-end">
-          <Badge variant="warning">Partially Approved</Badge>
-          <span className="text-xs text-gray-600 mt-1">
-            L-{currentLevel} approved, L-{currentLevel + 1} pending
-          </span>
-        </div>
-      );
-    }
-    
-    switch (status) {
-      case "pending":
-        return <Badge variant="warning">Pending</Badge>;
-      case "approved":
-        return <Badge variant="success">Approved</Badge>;
-      case "rejected":
-        return <Badge variant="danger">Rejected</Badge>;
-      case "cancelled":
-        return <Badge variant="default">Cancelled</Badge>;
-      case "partially_approved":
-        return <Badge variant="warning">Partially Approved</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
+  // Use the shared status badge renderer
+  const renderStatusBadge = renderStatusBadgeUtil;
 
   if (isLoading) {
     return (

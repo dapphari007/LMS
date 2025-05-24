@@ -28,22 +28,34 @@ const LeaveTypeConfigPage: React.FC = () => {
   const isSuperAdmin = user?.role === "super_admin";
 
   // Fetch leave types
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error: queryError } = useQuery({
     queryKey: ["leaveTypes"],
     queryFn: () => getLeaveTypes({}),
-    onError: (err: any) => setError(getErrorMessage(err)),
   });
+  
+  // Handle query error
+  useEffect(() => {
+    if (queryError) {
+      setError(getErrorMessage(queryError));
+    }
+  }, [queryError]);
 
   // Update leave type mutation
   const updateMutation = useMutation({
     mutationFn: (data: { id: string; leaveTypeData: Partial<LeaveType> }) =>
       updateLeaveType(data.id, data.leaveTypeData),
-    onSuccess: () => {
+  });
+
+  // Handle mutation success and error
+  useEffect(() => {
+    if (updateMutation.isSuccess) {
       setSuccessMessage("Leave type configuration updated successfully");
       queryClient.invalidateQueries({ queryKey: ["leaveTypes"] });
-    },
-    onError: (err: any) => setError(getErrorMessage(err)),
-  });
+    }
+    if (updateMutation.error) {
+      setError(getErrorMessage(updateMutation.error));
+    }
+  }, [updateMutation.isSuccess, updateMutation.error, queryClient]);
 
   // Handle leave type selection
   useEffect(() => {

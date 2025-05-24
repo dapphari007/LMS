@@ -2,10 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { createLeaveType } from "../../services/leaveTypeService";
-import {
-  bulkCreateLeaveBalances,
-  createAllLeaveBalancesForAllUsers,
-} from "../../services/leaveBalanceService";
+import { bulkCreateLeaveBalances } from "../../services/leaveBalanceService";
 import { CreateLeaveTypeData } from "../../types";
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";

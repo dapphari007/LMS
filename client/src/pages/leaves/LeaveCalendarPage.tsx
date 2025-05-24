@@ -6,10 +6,8 @@ import {
 } from "../../services/leaveRequestService";
 import { getAllUsers } from "../../services/userService";
 import { getHolidays } from "../../services/holidayService";
-import { LeaveRequest, User } from "../../types";
 import Card from "../../components/ui/Card";
 import Alert from "../../components/ui/Alert";
-import Badge from "../../components/ui/Badge";
 import { formatDate } from "../../utils/dateUtils";
 import { useAuth } from "../../context/AuthContext";
 
@@ -47,8 +45,12 @@ const LeaveCalendarPage: React.FC = () => {
   const [lastRefreshTime, setLastRefreshTime] = useState<Date>(new Date());
 
   // Fetch leave requests based on data view type and user role
-  const { data: leaveRequestsData, isLoading: isLeaveRequestsLoading, refetch: refetchLeaveRequests } =
-    useQuery({
+  const { 
+    data: leaveRequestsData, 
+    isLoading: isLeaveRequestsLoading, 
+    refetch: refetchLeaveRequests,
+    error: leaveRequestsError
+  } = useQuery({
       queryKey: ["leaveRequests", user?.role, dataViewType],
       queryFn: () => {
         // For individual view, only show user's own leave requests
@@ -69,23 +71,48 @@ const LeaveCalendarPage: React.FC = () => {
       refetchInterval: 30000,
       // Also refetch when the window regains focus
       refetchOnWindowFocus: true,
-      onError: (err: any) =>
-        setError(err.message || "Failed to load leave requests"),
     });
+    
+  // Handle leave requests error
+  useEffect(() => {
+    if (leaveRequestsError) {
+      setError((leaveRequestsError as Error).message || "Failed to load leave requests");
+    }
+  }, [leaveRequestsError]);
 
   // Fetch holidays for 2025
-  const { data: holidaysData, isLoading: isHolidaysLoading } = useQuery({
+  const { 
+    data: holidaysData, 
+    isLoading: isHolidaysLoading,
+    error: holidaysError
+  } = useQuery({
     queryKey: ["holidays", 2025],
     queryFn: () => getHolidays({ year: 2025 }),
-    onError: (err: any) => setError(err.message || "Failed to load holidays"),
   });
+  
+  // Handle holidays error
+  useEffect(() => {
+    if (holidaysError) {
+      setError((holidaysError as Error).message || "Failed to load holidays");
+    }
+  }, [holidaysError]);
 
   // Fetch all users for filtering
-  const { data: users, isLoading: isUsersLoading } = useQuery({
+  const { 
+    data: users, 
+    isLoading: isUsersLoading,
+    error: usersError
+  } = useQuery({
     queryKey: ["allUsers"],
     queryFn: getAllUsers,
-    onError: (err: any) => setError(err.message || "Failed to load users"),
   });
+  
+  // Handle users error
+  useEffect(() => {
+    if (usersError) {
+      setError((usersError as Error).message || "Failed to load users");
+    }
+  }, [usersError]);
 
   const isLoading =
     isLeaveRequestsLoading || isUsersLoading || isHolidaysLoading;
@@ -211,6 +238,7 @@ const LeaveCalendarPage: React.FC = () => {
         lastName: "Holiday",
       },
       isHoliday: true,
+      numberOfDays: 1, // Add numberOfDays property for holidays
     }));
 
     return [...leaveRequests, ...holidayLeaves];
