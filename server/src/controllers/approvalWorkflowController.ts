@@ -1,8 +1,10 @@
 import { Request, ResponseToolkit } from "@hapi/hapi";
-import { AppDataSource } from "../config/database";
-import { ApprovalWorkflow, UserRole } from "../models";
+import { AppDataSource, ensureDatabaseConnection } from "../config/database";
+import { ApprovalWorkflow, UserRole, WorkflowLevel, WorkflowCategory } from "../models";
 import logger from "../utils/logger";
+import { getActiveWorkflowLevels } from "../services/workflowLevelService";
 import { LessThanOrEqual, MoreThanOrEqual, Not } from "typeorm";
+import { getApprovalWorkflowForDuration as getWorkflowForDuration } from "../services/approvalWorkflowService";
 
 // Helper function to normalize role values to match UserRole enum values
 const normalizeRole = (role: string): string => {
@@ -255,18 +257,27 @@ export const createApprovalWorkflow = async (
     // Ensure approvalLevels is stored as a proper JSON object, not a string
     // This prevents issues with double-stringification
     approvalWorkflow.approvalLevels = Array.isArray(approvalLevels)
-      ? approvalLevels.map((level) => ({
-          level: level.level,
-          roles: Array.isArray(level.roles) 
-            ? level.roles.map(role => normalizeRole(role))
-            : [normalizeRole(level.roles)],
-          approverType: level.approverType,
-          fallbackRoles: Array.isArray(level.fallbackRoles)
-            ? level.fallbackRoles.map(role => normalizeRole(role))
-            : level.fallbackRoles ? [normalizeRole(level.fallbackRoles)] : undefined,
-          departmentSpecific: level.departmentSpecific
-        }))
+      ? approvalLevels.map((level) => {
+          // Log the incoming level data for debugging
+          logger.info(`Processing approval level for create: ${JSON.stringify(level)}`);
+          
+          return {
+            level: level.level,
+            roles: Array.isArray(level.roles) 
+              ? level.roles.map(role => normalizeRole(role))
+              : [normalizeRole(level.roles)],
+            approverType: level.approverType,
+            fallbackRoles: Array.isArray(level.fallbackRoles)
+              ? level.fallbackRoles.map(role => normalizeRole(role))
+              : level.fallbackRoles ? [normalizeRole(level.fallbackRoles)] : undefined,
+            departmentSpecific: level.departmentSpecific,
+            required: level.required
+          };
+        })
       : approvalLevels;
+      
+    // Log the final approval levels for debugging
+    logger.info(`Final approval levels for create: ${JSON.stringify(approvalWorkflow.approvalLevels)}`);
 
     approvalWorkflow.isActive = isActive !== undefined ? isActive : true;
     
@@ -494,18 +505,27 @@ export const updateApprovalWorkflow = async (
     // Ensure approvalLevels is stored as a proper JSON object, not a string
     if (approvalLevels) {
       approvalWorkflow.approvalLevels = Array.isArray(approvalLevels)
-        ? approvalLevels.map((level) => ({
-            level: level.level,
-            roles: Array.isArray(level.roles) 
-              ? level.roles.map(role => normalizeRole(role))
-              : [normalizeRole(level.roles)],
-            approverType: level.approverType,
-            fallbackRoles: Array.isArray(level.fallbackRoles)
-              ? level.fallbackRoles.map(role => normalizeRole(role))
-              : level.fallbackRoles ? [normalizeRole(level.fallbackRoles)] : undefined,
-            departmentSpecific: level.departmentSpecific
-          }))
+        ? approvalLevels.map((level) => {
+            // Log the incoming level data for debugging
+            logger.info(`Processing approval level: ${JSON.stringify(level)}`);
+            
+            return {
+              level: level.level,
+              roles: Array.isArray(level.roles) 
+                ? level.roles.map(role => normalizeRole(role))
+                : [normalizeRole(level.roles)],
+              approverType: level.approverType,
+              fallbackRoles: Array.isArray(level.fallbackRoles)
+                ? level.fallbackRoles.map(role => normalizeRole(role))
+                : level.fallbackRoles ? [normalizeRole(level.fallbackRoles)] : undefined,
+              departmentSpecific: level.departmentSpecific,
+              required: level.required
+            };
+          })
         : approvalLevels;
+        
+      // Log the final approval levels for debugging
+      logger.info(`Final approval levels: ${JSON.stringify(approvalWorkflow.approvalLevels)}`);
     }
 
     if (isActive !== undefined) approvalWorkflow.isActive = isActive;
@@ -619,6 +639,63 @@ export const initializeDefaultApprovalWorkflows = async (
       .response({
         message:
           "An error occurred while initializing default approval workflows",
+        error: error.message,
+      })
+      .code(500);
+  }
+};
+
+export const getApprovalWorkflowForDuration = async (
+  request: Request,
+  h: ResponseToolkit
+) => {
+  try {
+    const { days } = request.params;
+    const numDays = parseFloat(days);
+    
+    if (isNaN(numDays) || numDays < 0) {
+      return h
+        .response({ message: "Days must be a non-negative number" })
+        .code(400);
+    }
+    
+    // Get the approval workflow for the specified duration
+    const approvalWorkflow = await getWorkflowForDuration(numDays);
+    
+    // Check if auth credentials exist
+    if (!request.auth || !request.auth.credentials) {
+      logger.error("No auth credentials found in request");
+      return h.response({ message: "Authentication error" }).code(401);
+    }
+    
+    // Get the user ID from the request credentials
+    const userId = request.auth.credentials.id as string;
+    
+    // Enhance the workflow with user-specific approver information
+    // This would typically come from a service that maps workflow roles to actual users
+    // based on the requesting user's department, team, etc.
+    
+    return h
+      .response({
+        approvalWorkflow,
+      })
+      .code(200);
+  } catch (error) {
+    logger.error(`Error in getApprovalWorkflowForDuration: ${error}`);
+    
+    // Handle specific error for no workflow found
+    if (error.message === "No approval workflow found for this leave duration") {
+      return h
+        .response({ 
+          message: "No approval workflow found for this leave duration",
+          error: error.message
+        })
+        .code(404);
+    }
+    
+    return h
+      .response({
+        message: "An error occurred while fetching the approval workflow",
         error: error.message,
       })
       .code(500);

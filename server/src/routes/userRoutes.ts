@@ -82,6 +82,16 @@ const userRoutes: ServerRoute[] = [
       tags: ["api", "users"],
     },
   },
+  {
+    method: "GET",
+    path: "/api/users/my-approvers",
+    handler: UserController.getUserApprovers,
+    options: {
+      auth: "all_roles",
+      description: "Get user's approvers based on their role and department",
+      tags: ["api", "users", "approvers"],
+    },
+  },
 ];
 
 export default userRoutes;

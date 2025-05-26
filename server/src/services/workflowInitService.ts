@@ -46,17 +46,20 @@ export const initializeWorkflows = async (): Promise<void> => {
       
       logger.info("Default workflows creation process completed.");
     } else {
-      // Workflows already exist, check if we need to update any
-      logger.info(`Found ${existingWorkflows.length} existing workflows. Checking for updates...`);
+      // Workflows already exist, only create missing default workflows
+      // DO NOT update existing ones to preserve custom changes
+      logger.info(`Found ${existingWorkflows.length} existing workflows. Only adding missing defaults...`);
       
-      // Check if all default workflows exist by name
+      // Get the names of existing workflows
+      const existingWorkflowNames = existingWorkflows.map(w => w.name);
+      
+      // Only create default workflows that don't exist yet
       for (const defaultWorkflow of DEFAULT_APPROVAL_WORKFLOWS) {
         try {
-          const existingWorkflow = existingWorkflows.find(w => w.name === defaultWorkflow.name);
-          
-          if (!existingWorkflow) {
+          // Check if this default workflow already exists by name
+          if (!existingWorkflowNames.includes(defaultWorkflow.name)) {
             // This default workflow doesn't exist, create it
-            logger.info(`Creating missing workflow: ${defaultWorkflow.name}`);
+            logger.info(`Creating missing default workflow: ${defaultWorkflow.name}`);
             
             const workflow = new ApprovalWorkflow();
             workflow.name = defaultWorkflow.name;
@@ -66,10 +69,12 @@ export const initializeWorkflows = async (): Promise<void> => {
             workflow.isActive = true;
             
             await workflowRepository.save(workflow);
-            logger.info(`Created missing workflow: ${defaultWorkflow.name}`);
+            logger.info(`Created missing default workflow: ${defaultWorkflow.name}`);
+          } else {
+            logger.info(`Preserving existing workflow: ${defaultWorkflow.name}`);
           }
         } catch (updateError) {
-          logger.error(`Error updating workflow ${defaultWorkflow.name}: ${updateError}`);
+          logger.error(`Error creating workflow ${defaultWorkflow.name}: ${updateError}`);
           // Continue with the next workflow instead of failing completely
         }
       }

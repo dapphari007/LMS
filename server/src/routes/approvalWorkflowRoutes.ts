@@ -63,6 +63,16 @@ const approvalWorkflowRoutes: ServerRoute[] = [
       tags: ["api", "approval-workflows"],
     },
   },
+  {
+    method: "GET",
+    path: "/api/approval-workflows/for-duration/{days}",
+    handler: ApprovalWorkflowController.getApprovalWorkflowForDuration,
+    options: {
+      auth: "all_roles",
+      description: "Get approval workflow for a specific leave duration",
+      tags: ["api", "approval-workflows"],
+    },
+  },
 ];
 
 export default approvalWorkflowRoutes;

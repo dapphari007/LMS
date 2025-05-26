@@ -623,3 +623,361 @@ export const activateUser = async (request: Request, h: ResponseToolkit) => {
       .code(500);
   }
 };
+
+export const getUserApprovers = async (request: Request, h: ResponseToolkit) => {
+  try {
+    // Check if auth credentials exist
+    if (!request.auth || !request.auth.credentials) {
+      logger.error("No auth credentials found in request");
+      return h.response({ message: "Authentication error" }).code(401);
+    }
+    
+    // Get the authenticated user ID from credentials
+    const userId = request.auth.credentials.id as string;
+    const { workflowId } = request.query as any;
+    
+    // Get user repository
+    const userRepository = AppDataSource.getRepository(User);
+    
+    // First, get the complete user record from the database
+    const currentUser = await userRepository.findOne({
+      where: { id: userId }
+    });
+    
+    if (!currentUser) {
+      return h.response({ message: "User not found" }).code(404);
+    }
+    
+    // Find the user's approvers based on their hierarchy
+    const approvers = [];
+    
+    // Special handling for different roles
+    // If the user is a Team Lead, they should skip Level 1 approval
+    if (currentUser.role === UserRole.TEAM_LEAD) {
+      logger.info(`User ${userId} is a Team Lead, skipping Level 1 approval`);
+      
+      // For Team Leads, their manager is the first approver (Level 1)
+      if (currentUser.managerId) {
+        const manager = await userRepository.findOne({ 
+          where: { id: currentUser.managerId },
+          select: ["id", "firstName", "lastName", "email", "role"] 
+        });
+        
+        if (manager) {
+          approvers.push({
+            ...manager,
+            level: 1, // Make the manager the Level 1 approver for Team Leads
+            isFallback: false
+          });
+        }
+      }
+      
+      // Add HR as Level 2 approver
+      if (currentUser.hrId) {
+        const hr = await userRepository.findOne({ 
+          where: { id: currentUser.hrId },
+          select: ["id", "firstName", "lastName", "email", "role"] 
+        });
+        
+        if (hr) {
+          approvers.push({
+            ...hr,
+            level: 2, // HR becomes Level 2 for Team Leads
+            isFallback: false
+          });
+        }
+      }
+    } 
+    // If the user is a Manager, they should skip Level 1 and 2
+    else if (currentUser.role === UserRole.MANAGER) {
+      logger.info(`User ${userId} is a Manager, skipping Level 1 and 2 approval`);
+      
+      // For Managers, HR is the first approver (Level 1)
+      if (currentUser.hrId) {
+        const hr = await userRepository.findOne({ 
+          where: { id: currentUser.hrId },
+          select: ["id", "firstName", "lastName", "email", "role"] 
+        });
+        
+        if (hr) {
+          approvers.push({
+            ...hr,
+            level: 1, // Make HR the Level 1 approver for Managers
+            isFallback: false
+          });
+        }
+      } else {
+        // If no specific HR is assigned, find an HR from the same department
+        const departmentHR = await userRepository.findOne({
+          where: { 
+            role: UserRole.HR, 
+            isActive: true,
+            department: currentUser.department 
+          },
+          select: ["id", "firstName", "lastName", "email", "role"]
+        });
+        
+        if (departmentHR) {
+          approvers.push({
+            ...departmentHR,
+            level: 1,
+            isFallback: true
+          });
+        } else {
+          // If no HR in the same department, find any HR
+          const anyHR = await userRepository.findOne({
+            where: { role: UserRole.HR, isActive: true },
+            select: ["id", "firstName", "lastName", "email", "role"]
+          });
+          
+          if (anyHR) {
+            approvers.push({
+              ...anyHR,
+              level: 1,
+              isFallback: true
+            });
+          }
+        }
+      }
+    }
+    // If the user is HR, they should skip Level 1, 2, and 3
+    else if (currentUser.role === UserRole.HR) {
+      logger.info(`User ${userId} is HR, skipping to Super Admin approval`);
+      
+      // For HR, Super Admin is the first approver (Level 1)
+      const admins = await userRepository.find({
+        where: { role: UserRole.SUPER_ADMIN, isActive: true },
+        select: ["id", "firstName", "lastName", "email", "role"]
+      });
+      
+      if (admins.length > 0) {
+        approvers.push({
+          ...admins[0],
+          level: 1, // Make Super Admin the Level 1 approver for HR
+          isFallback: false
+        });
+      } else {
+        // If no Super Admin is found, try another approach
+        const superAdmins = await userRepository.find({
+          where: { role: UserRole.SUPER_ADMIN, isActive: true },
+          select: ["id", "firstName", "lastName", "email", "role"]
+        });
+        
+        if (superAdmins.length > 0) {
+          approvers.push({
+            ...superAdmins[0],
+            level: 1, // Make Super Admin the Level 1 approver for HR
+            isFallback: true
+          });
+        }
+      }
+    }
+    // Regular employee approval path
+    else {
+      // Add team lead if exists
+      if (currentUser.teamLeadId) {
+        const teamLead = await userRepository.findOne({ 
+          where: { id: currentUser.teamLeadId },
+          select: ["id", "firstName", "lastName", "email", "role"] 
+        });
+        
+        if (teamLead) {
+          approvers.push({
+            ...teamLead,
+            level: 1,
+            isFallback: false
+          });
+        }
+      }
+      
+      // Add manager if exists
+      if (currentUser.managerId) {
+        const manager = await userRepository.findOne({ 
+          where: { id: currentUser.managerId },
+          select: ["id", "firstName", "lastName", "email", "role"] 
+        });
+        
+        if (manager) {
+          approvers.push({
+            ...manager,
+            level: 2,
+            isFallback: false
+          });
+        }
+      }
+      
+      // Add HR if exists
+      if (currentUser.hrId) {
+        const hr = await userRepository.findOne({ 
+          where: { id: currentUser.hrId },
+          select: ["id", "firstName", "lastName", "email", "role"] 
+        });
+        
+        if (hr) {
+          approvers.push({
+            ...hr,
+            level: 3,
+            isFallback: false
+          });
+        }
+      }
+    }
+    
+    // If no direct approvers found, find fallback approvers by role
+    if (approvers.length === 0) {
+      // For Team Leads, find managers directly
+      if (currentUser.role === UserRole.TEAM_LEAD) {
+        // Find managers in the same department if possible
+        const managerFilter = currentUser.department 
+          ? { role: UserRole.MANAGER, isActive: true, department: currentUser.department }
+          : { role: UserRole.MANAGER, isActive: true };
+          
+        const managers = await userRepository.find({
+          where: managerFilter,
+          select: ["id", "firstName", "lastName", "email", "role"]
+        });
+        
+        if (managers.length > 0) {
+          approvers.push({
+            ...managers[0],
+            level: 1, // Level 1 for Team Leads is their manager
+            isFallback: true
+          });
+        }
+      }
+      // For Managers, find HR directly
+      else if (currentUser.role === UserRole.MANAGER) {
+        // First try to find HR in the same department
+        const departmentHRs = await userRepository.find({
+          where: { 
+            role: UserRole.HR, 
+            isActive: true,
+            department: currentUser.department 
+          },
+          select: ["id", "firstName", "lastName", "email", "role"]
+        });
+        
+        if (departmentHRs.length > 0) {
+          approvers.push({
+            ...departmentHRs[0],
+            level: 1, // Level 1 for Managers is HR
+            isFallback: true
+          });
+        } else {
+          // If no HR in the same department, find any HR
+          const hrs = await userRepository.find({
+            where: { role: UserRole.HR, isActive: true },
+            select: ["id", "firstName", "lastName", "email", "role"]
+          });
+          
+          if (hrs.length > 0) {
+            approvers.push({
+              ...hrs[0],
+              level: 1, // Level 1 for Managers is HR
+              isFallback: true
+            });
+          }
+        }
+      }
+      // For HR, find Super Admin
+      else if (currentUser.role === UserRole.HR) {
+        // Find Super Admin
+        const admins = await userRepository.find({
+          where: { role: UserRole.SUPER_ADMIN, isActive: true },
+          select: ["id", "firstName", "lastName", "email", "role"]
+        });
+        
+        if (admins.length > 0) {
+          approvers.push({
+            ...admins[0],
+            level: 1, // Level 1 for HR is Super Admin
+            isFallback: true
+          });
+        } else {
+          // If no Super Admin found, try again
+          const superAdmins = await userRepository.find({
+            where: { role: UserRole.SUPER_ADMIN, isActive: true },
+            select: ["id", "firstName", "lastName", "email", "role"]
+          });
+          
+          if (superAdmins.length > 0) {
+            approvers.push({
+              ...superAdmins[0],
+              level: 1, // Level 1 for HR is Super Admin if no Admin
+              isFallback: true
+            });
+          }
+        }
+      }
+      // For regular employees, find team leads and managers
+      else {
+        // Find team leads in the same department if possible
+        const departmentFilter = currentUser.department 
+          ? { role: UserRole.TEAM_LEAD, isActive: true, department: currentUser.department }
+          : { role: UserRole.TEAM_LEAD, isActive: true };
+          
+        const teamLeads = await userRepository.find({
+          where: departmentFilter,
+          select: ["id", "firstName", "lastName", "email", "role"]
+        });
+        
+        if (teamLeads.length > 0) {
+          approvers.push({
+            ...teamLeads[0],
+            level: 1,
+            isFallback: true
+          });
+        }
+        
+        // Find managers in the same department if possible
+        const managerFilter = currentUser.department 
+          ? { role: UserRole.MANAGER, isActive: true, department: currentUser.department }
+          : { role: UserRole.MANAGER, isActive: true };
+          
+        const managers = await userRepository.find({
+          where: managerFilter,
+          select: ["id", "firstName", "lastName", "email", "role"]
+        });
+        
+        if (managers.length > 0) {
+          approvers.push({
+            ...managers[0],
+            level: 2,
+            isFallback: true
+          });
+        }
+        
+        // Find HR
+        const hrs = await userRepository.find({
+          where: { role: UserRole.HR, isActive: true },
+          select: ["id", "firstName", "lastName", "email", "role"]
+        });
+        
+        if (hrs.length > 0) {
+          approvers.push({
+            ...hrs[0],
+            level: 3,
+            isFallback: true
+          });
+        }
+      }
+    }
+    
+    // Sort approvers by level
+    approvers.sort((a, b) => a.level - b.level);
+    
+    return h
+      .response({
+        approvers,
+      })
+      .code(200);
+  } catch (error) {
+    logger.error(`Error in getUserApprovers: ${error}`);
+    return h
+      .response({ 
+        message: "An error occurred while fetching user approvers",
+        error: error.message
+      })
+      .code(500);
+  }
+};

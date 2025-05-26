@@ -57,11 +57,29 @@ export const authPlugin = {
           try {
             // First, authenticate using JWT
             const { credentials } = await server.auth.test("jwt", request);
+            
+            // Ensure credentials exist
+            if (!credentials) {
+              return h.unauthenticated(new Error("Invalid credentials"));
+            }
 
             // If roles are specified, check if the user has the required role
             if (options.roles && options.roles.length > 0) {
               const userRole = credentials.role as UserRole;
-              if (!options.roles.includes(userRole)) {
+              
+              // Check if user has custom role permissions
+              // Safely access permissions with null checks
+              const hasCustomPermissions = request.auth?.credentials?.permissions;
+              // Type guard to check if hasCustomPermissions is an array
+              const isPermissionsArray = Array.isArray(hasCustomPermissions);
+              
+              const isCustomRoleWithPermission = isPermissionsArray && 
+                ((options.roles.includes(UserRole.HR) && hasCustomPermissions.includes('hr')) ||
+                 (options.roles.includes(UserRole.MANAGER) && hasCustomPermissions.includes('manager')) ||
+                 (options.roles.includes(UserRole.TEAM_LEAD) && hasCustomPermissions.includes('team_lead')));
+              
+              // Allow access if user has the role or custom permissions
+              if (!options.roles.includes(userRole) && !isCustomRoleWithPermission) {
                 return h.unauthenticated(
                   new Error("Insufficient permissions to access this resource")
                 );

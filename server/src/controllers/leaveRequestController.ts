@@ -652,12 +652,6 @@ export const updateLeaveRequestStatus = async (
       return h.response({ message: "Approver not found" }).code(404);
     }
 
-    // Check if the approver is authorized based on department and role
-    const authorizationCheck = await approverService.isApproverAuthorized(
-      approverId as string,
-      leaveRequest.userId
-    );
-
     // Get the request user for additional checks
     const requestUser = await userRepository.findOne({
       where: { id: leaveRequest.userId },
@@ -674,19 +668,42 @@ export const updateLeaveRequestStatus = async (
     const isSelfCancellation =
       leaveRequest.userId === approverId &&
       normalizedStatus === LeaveRequestStatus.CANCELLED;
-
-    // Check if team lead is trying to approve a leave request longer than 2 days
-    if (isTeamLead && 
-        normalizedStatus === LeaveRequestStatus.APPROVED && 
-        leaveRequest.numberOfDays > 2) {
-      // For leaves > 2 days, team lead can approve but it will need further approval
-      // This will be handled by the multi-level approval workflow
-    } else if (!authorizationCheck.isAuthorized && !isSelfCancellation) {
-      return h
-        .response({
-          message: authorizationCheck.reason || "You are not authorized to update this leave request",
-        })
-        .code(403);
+    
+    // Special cases for role-specific approval flows
+    const isTeamLeadRequest = requestUser.role === UserRole.TEAM_LEAD;
+    const isManagerRequest = requestUser.role === UserRole.MANAGER;
+    const isHRRequest = requestUser.role === UserRole.HR;
+    const isManagerApprovingTeamLead = isTeamLeadRequest && approver.role === UserRole.MANAGER && isManager;
+    const isHRApprovingManager = isManagerRequest && approver.role === UserRole.HR;
+    const isAdminApprovingHR = isHRRequest && approver.role === UserRole.SUPER_ADMIN;
+    
+    // If it's a special case approval, we'll bypass the regular authorization check
+    if (!isManagerApprovingTeamLead && !isHRApprovingManager && !isAdminApprovingHR) {
+      // Check if the approver is authorized based on department and role
+      const authorizationCheck = await approverService.isApproverAuthorized(
+        approverId as string,
+        leaveRequest.userId
+      );
+      
+      // Check if team lead is trying to approve a leave request longer than 2 days
+      if (isTeamLead && 
+          normalizedStatus === LeaveRequestStatus.APPROVED && 
+          leaveRequest.numberOfDays > 2) {
+        // For leaves > 2 days, team lead can approve but it will need further approval
+        // This will be handled by the multi-level approval workflow
+      } else if (!authorizationCheck.isAuthorized && !isSelfCancellation) {
+        return h
+          .response({
+            message: authorizationCheck.reason || "You are not authorized to update this leave request",
+          })
+          .code(403);
+      }
+    } else if (isManagerApprovingTeamLead) {
+      logger.info(`Manager ${approverId} is authorized to approve Team Lead ${leaveRequest.userId} request`);
+    } else if (isHRApprovingManager) {
+      logger.info(`HR ${approverId} is authorized to approve Manager ${leaveRequest.userId} request`);
+    } else if (isAdminApprovingHR) {
+      logger.info(`Admin ${approverId} is authorized to approve HR ${leaveRequest.userId} request`);
     }
 
     // Check if multi-level approval is required
@@ -817,34 +834,56 @@ export const updateLeaveRequestStatus = async (
             }
           }
         } else {
-          // For new approvals, check all levels
-          for (const level of sortedLevels) {
-            // Check if this is a new format level with approverType
-            if (level.approverType) {
-              // Check if the current approver is the assigned approver for this level
-              const assignedApprover = await approverService.findApproverByType(
-                leaveRequest.userId,
-                level.approverType
-              );
-              
-              if (assignedApprover && assignedApprover.id === approverId) {
-                currentApproverLevel = level.level;
-                break;
-              }
-              
-              // If no assigned approver or not matching, check fallback roles
-              if (level.fallbackRoles && level.fallbackRoles.includes(approver.role)) {
-                currentApproverLevel = level.level;
-                break;
-              }
-            } else {
-              // Legacy format - check by role
-              const roles = Array.isArray(level.roles)
-                ? level.roles
-                : [level.roles];
-              if (roles.includes(approver.role)) {
-                currentApproverLevel = level.level;
-                break;
+          // Special case for Team Lead requests being approved by their manager
+          if (requestUser.role === UserRole.TEAM_LEAD && approver.role === UserRole.MANAGER && isManager) {
+            logger.info(`Manager ${approverId} is approving Team Lead ${leaveRequest.userId} request`);
+            // For Team Lead requests, managers should be able to approve at Level 1
+            currentApproverLevel = 1;
+          }
+          // Special case for Manager requests being approved by HR
+          else if (requestUser.role === UserRole.MANAGER && approver.role === UserRole.HR) {
+            logger.info(`HR ${approverId} is approving Manager ${leaveRequest.userId} request`);
+            // For Manager requests, HR should be able to approve at Level 1
+            currentApproverLevel = 1;
+          }
+          // Special case for HR requests being approved by Super Admin
+          else if (requestUser.role === UserRole.HR && 
+                  approver.role === UserRole.SUPER_ADMIN) {
+            logger.info(`Super Admin ${approverId} is approving HR ${leaveRequest.userId} request`);
+            // For HR requests, Super Admin should be able to approve at Level 1
+            currentApproverLevel = 1;
+          }
+          // Regular approval flow
+          else {
+            // For new approvals, check all levels
+            for (const level of sortedLevels) {
+              // Check if this is a new format level with approverType
+              if (level.approverType) {
+                // Check if the current approver is the assigned approver for this level
+                const assignedApprover = await approverService.findApproverByType(
+                  leaveRequest.userId,
+                  level.approverType
+                );
+                
+                if (assignedApprover && assignedApprover.id === approverId) {
+                  currentApproverLevel = level.level;
+                  break;
+                }
+                
+                // If no assigned approver or not matching, check fallback roles
+                if (level.fallbackRoles && level.fallbackRoles.includes(approver.role)) {
+                  currentApproverLevel = level.level;
+                  break;
+                }
+              } else {
+                // Legacy format - check by role
+                const roles = Array.isArray(level.roles)
+                  ? level.roles
+                  : [level.roles];
+                if (roles.includes(approver.role)) {
+                  currentApproverLevel = level.level;
+                  break;
+                }
               }
             }
           }

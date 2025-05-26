@@ -12,7 +12,7 @@ import logger from "./utils/logger";
 import { ensureDefaultUsers } from "./utils/ensure-default-users";
 import { createDefaultLeaveTypes } from "./scripts/createDefaultLeaveTypes";
 import { createHolidays } from "./scripts/createHolidays2025";
-import { initializeSystemRoles } from "./controllers/roleController";
+import { initializeSystemRoles, updateUserRoleIds } from "./controllers/roleController";
 import { initializeSystemPages } from "./controllers/pageController";
 import { createTestUser } from "./scripts/createTestUser";
 import { createDefaultDepartments } from "./scripts/createDefaultDepartments";
@@ -205,6 +205,10 @@ const init = async () => {
       if (await tablesExist(["roles"])) {
         await initializeSystemRoles();
         console.log("System roles initialized");
+        
+        // Update user roleIds based on their role enum values
+        await updateUserRoleIds();
+        console.log("User roleIds updated");
       } else {
         logger.warn(
           "Roles table not available yet, skipping system roles initialization"

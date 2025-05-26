@@ -5,6 +5,7 @@ import {
   createRole,
   updateRole,
   deleteRole,
+  toggleRoleStatus,
 } from "../controllers/roleController";
 
 const roleRoutes: ServerRoute[] = [
@@ -55,6 +56,16 @@ const roleRoutes: ServerRoute[] = [
     options: {
       auth: "super_admin",
       description: "Delete role",
+      tags: ["api", "roles"],
+    },
+  },
+  {
+    method: "PATCH",
+    path: "/api/roles/{id}/toggle-status",
+    handler: toggleRoleStatus,
+    options: {
+      auth: "super_admin",
+      description: "Toggle role active status",
       tags: ["api", "roles"],
     },
   },
