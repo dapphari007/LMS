@@ -91,3 +91,17 @@ export const getUserById = async (id: string): Promise<User> => {
   }
   return response.data;
 };
+
+export const getUserApprovers = async (workflowId?: string): Promise<{ approvers: any[] }> => {
+  try {
+    const params = new URLSearchParams();
+    if (workflowId) {
+      params.append("workflowId", workflowId);
+    }
+    
+    return get<{ approvers: any[] }>(`/users/my-approvers${params.toString() ? `?${params.toString()}` : ''}`);
+  } catch (error) {
+    console.error('Error fetching user approvers:', error);
+    throw error;
+  }
+};

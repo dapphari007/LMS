@@ -8,6 +8,9 @@ import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 
+// Landing Page
+import LandingPage from "./pages/LandingPage";
+
 // Auth Pages
 import LoginPage from "./pages/auth/LoginPage";
 
@@ -43,6 +46,7 @@ import EditWorkflowCategoryPage from "./pages/admin/EditWorkflowCategoryPage";
 import CreateApproverTypePage from "./pages/admin/CreateApproverTypePage";
 import EditApproverTypePage from "./pages/admin/EditApproverTypePage";
 import ApprovalManagementPage from "./pages/admin/ApprovalManagementPage";
+import WorkflowLevelsPage from "./pages/admin/WorkflowLevelsPage";
 import SuperAdminDashboardPage from "./pages/admin/SuperAdminDashboardPage";
 import RolesPage from "./pages/admin/RolesPage";
 import CreateRolePage from "./pages/admin/CreateRolePage";
@@ -68,6 +72,10 @@ const queryClient = new QueryClient({
 const router = createBrowserRouter([
   // Public Routes
   {
+    path: "/",
+    element: <LandingPage />,
+  },
+  {
     path: "/login",
     element: <LoginPage />,
   },
@@ -77,7 +85,7 @@ const router = createBrowserRouter([
     element: <ProtectedRoute allowedRoles={["employee", "manager", "admin", "team_lead", "hr"]} />,
     children: [
       {
-        path: "/",
+        path: "/dashboard",
         element: <DashboardPage />,
       },
 
@@ -277,6 +285,10 @@ const router = createBrowserRouter([
       {
         path: "/approver-types/edit/:id",
         element: <EditApproverTypePage />,
+      },
+      {
+        path: "/workflow-levels",
+        element: <Navigate to="/approval-management?tab=levels" replace />,
       },
     ],
   },

@@ -27,8 +27,8 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get the intended destination from location state, or default to home
-  const from = location.state?.from?.pathname || "/";
+  // Get the intended destination from location state, or default to dashboard
+  const from = location.state?.from?.pathname || "/dashboard";
 
   const onSubmit = async (data: ExtendedLoginCredentials): Promise<void> => {
     setIsLoading(true);

@@ -3,8 +3,9 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import ApprovalWorkflowsPage from "./ApprovalWorkflowsPage";
 import WorkflowCategoriesPage from "./WorkflowCategoriesPage";
 import ApproverTypesPage from "./ApproverTypesPage";
+import WorkflowLevelsConfig from "../../components/admin/WorkflowLevelsConfig";
 
-type TabType = "workflows" | "categories" | "approverTypes";
+type TabType = "workflows" | "categories" | "approverTypes" | "levels";
 
 export default function ApprovalManagementPage() {
   const [searchParams] = useSearchParams();
@@ -12,8 +13,8 @@ export default function ApprovalManagementPage() {
   const tabParam = searchParams.get("tab");
   
   // Set initial tab based on URL parameter or default to "workflows"
-  const initialTab: TabType = (tabParam === "categories" || tabParam === "approverTypes") 
-    ? tabParam 
+  const initialTab: TabType = (tabParam === "categories" || tabParam === "approverTypes" || tabParam === "levels") 
+    ? tabParam as TabType
     : "workflows";
     
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
@@ -26,8 +27,8 @@ export default function ApprovalManagementPage() {
   
   // Update tab if URL parameter changes
   useEffect(() => {
-    if (tabParam === "categories" || tabParam === "approverTypes") {
-      setActiveTab(tabParam);
+    if (tabParam === "categories" || tabParam === "approverTypes" || tabParam === "levels") {
+      setActiveTab(tabParam as TabType);
     } else if (tabParam === null && activeTab !== "workflows") {
       setActiveTab("workflows");
     }
@@ -49,6 +50,16 @@ export default function ApprovalManagementPage() {
             }`}
           >
             Approval Workflows
+          </button>
+          <button
+            onClick={() => handleTabChange("levels")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "levels"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            Workflow Levels
           </button>
           <button
             onClick={() => handleTabChange("categories")}
@@ -76,6 +87,7 @@ export default function ApprovalManagementPage() {
       {/* Tab Content */}
       <div className="mt-6">
         {activeTab === "workflows" && <ApprovalWorkflowsPage isTabContent={true} />}
+        {activeTab === "levels" && <WorkflowLevelsConfig isTabContent={true} />}
         {activeTab === "categories" && <WorkflowCategoriesPage isTabContent={true} />}
         {activeTab === "approverTypes" && <ApproverTypesPage isTabContent={true} />}
       </div>

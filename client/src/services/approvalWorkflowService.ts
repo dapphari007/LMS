@@ -73,3 +73,13 @@ export const initializeDefaultWorkflows = async () => {
   const response = await api.post('/approval-workflows/initialize-defaults');
   return response.data;
 };
+
+export const getApprovalWorkflowForDuration = async (days: number) => {
+  try {
+    const response = await api.get(`/approval-workflows/for-duration/${days}`);
+    return response.data.approvalWorkflow;
+  } catch (error) {
+    console.error('Error fetching approval workflow for duration:', error);
+    throw error;
+  }
+};

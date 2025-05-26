@@ -5,18 +5,36 @@ import {
   isWeekend,
 } from "date-fns";
 
-export const formatDate = (date: Date | string): string => {
-  if (date instanceof Date) {
-    return format(date, "MMM dd, yyyy");
+export const formatDate = (date: Date | string | null | undefined): string => {
+  if (!date) {
+    return "N/A";
   }
-  return format(parseISO(date), "MMM dd, yyyy");
+  
+  try {
+    if (date instanceof Date) {
+      return format(date, "MMM dd, yyyy");
+    }
+    return format(parseISO(date), "MMM dd, yyyy");
+  } catch (error) {
+    console.error("Error formatting date:", error, "Date value:", date);
+    return "Invalid date";
+  }
 };
 
-export const formatDateTime = (date: Date | string): string => {
-  if (date instanceof Date) {
-    return format(date, "MMM dd, yyyy HH:mm");
+export const formatDateTime = (date: Date | string | null | undefined): string => {
+  if (!date) {
+    return "N/A";
   }
-  return format(parseISO(date), "MMM dd, yyyy HH:mm");
+  
+  try {
+    if (date instanceof Date) {
+      return format(date, "MMM dd, yyyy HH:mm");
+    }
+    return format(parseISO(date), "MMM dd, yyyy HH:mm");
+  } catch (error) {
+    console.error("Error formatting datetime:", error, "Date value:", date);
+    return "Invalid date";
+  }
 };
 
 export const calculateBusinessDays = (

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getHRDashboard, getEmployeeDashboard } from "../../services/dashboardService";
+import { getHRDashboard, getEmployeeDashboard, getManagerDashboard } from "../../services/dashboardService";
 import { getAllLeaveRequests } from "../../services/leaveRequestService";
 import { useAuth } from "../../context/AuthContext";
 import Card from "../../components/ui/Card";
@@ -41,36 +41,7 @@ const HRDashboardPage: React.FC = () => {
       upcomingHolidays: []
     };
   };
-
-  // Fetch HR dashboard data using dedicated HR endpoint with multiple fallbacks
-  const { data: hrDashboard, isLoading: isHRLoading, error: hrError } = useQuery({
-    queryKey: ["hrDashboard"],
-    queryFn: async () => {
-      try {
-        // First try the HR-specific endpoint
-        console.log("Attempting to fetch HR dashboard data...");
-        return await getHRDashboard();
-      } catch (hrError) {
-        console.error("Error fetching HR dashboard data:", hrError);
-        
-        try {
-          // If HR endpoint fails, try the manager endpoint as fallback
-          console.log("Falling back to manager dashboard endpoint...");
-          const managerDashboardData = await import("../../services/dashboardService")
-            .then(module => module.getManagerDashboard());
-          return managerDashboardData;
-        } catch (managerError) {
-          console.error("Error fetching manager dashboard data:", managerError);
-          
-          // Use mock data as final fallback
-          return getMockHRDashboardData();
-        }
-      }
-    },
-    retry: 2,
-    retryDelay: 1000
-  });
-
+  
   // Mock data for employee dashboard fallback
   const getMockEmployeeDashboardData = () => {
     console.log("Using mock employee dashboard data as fallback");
@@ -85,7 +56,7 @@ const HRDashboardPage: React.FC = () => {
     };
   };
 
-  // Fetch employee dashboard data for personal leave balances
+  // Fetch employee dashboard data first as it's most likely to succeed
   const { data: employeeDashboard, isLoading: isEmployeeLoading, error: employeeError } = useQuery({
     queryKey: ["employeeDashboard"],
     queryFn: async () => {
@@ -101,6 +72,85 @@ const HRDashboardPage: React.FC = () => {
     retry: 2,
     retryDelay: 1000
   });
+
+  // Determine which role-specific endpoints to try based on user permissions
+  const hasHRRole = user?.role === "hr" || user?.role === "super_admin";
+  const hasManagerRole = user?.role === "manager" || user?.role === "team_lead" || user?.role === "super_admin";
+  const hasCustomPermission = user?.roleObj?.permissions?.includes('view_team_leaves') || 
+                             user?.roleObj?.permissions?.includes('hr') ||
+                             user?.roleObj?.permissions?.includes('manager');
+
+  // Create a combined dashboard from available data sources
+  const { data: hrDashboard, isLoading: isHRLoading, error: hrError } = useQuery({
+    queryKey: ["hrDashboard"],
+    queryFn: async () => {
+      try {
+        // Start with a base dashboard (either from employee data or mock)
+        let baseDashboard = employeeDashboard || getMockEmployeeDashboardData();
+        
+        // Try to enhance with HR-specific data if user has HR role
+        if (hasHRRole) {
+          try {
+            console.log("User has HR role, attempting to fetch HR dashboard data...");
+            const hrData = await getHRDashboard();
+            console.log("HR dashboard data fetched successfully");
+            return hrData; // If HR data succeeds, use it directly
+          } catch (hrError) {
+            console.error("Error fetching HR dashboard data:", hrError);
+            // Continue with fallbacks
+          }
+        }
+        
+        // Try to enhance with manager data if user has appropriate permissions
+        if (hasManagerRole || hasCustomPermission) {
+          try {
+            console.log("Attempting to fetch manager dashboard data...");
+            const managerData = await getManagerDashboard();
+            
+            // Combine with base dashboard
+            return {
+              ...baseDashboard,
+              pendingRequests: managerData.pendingRequests || [],
+              teamAvailability: managerData.teamAvailability || [],
+              // Add other manager-specific fields as needed
+            };
+          } catch (managerError) {
+            console.error("Error fetching manager dashboard data:", managerError);
+            // Continue with base dashboard
+          }
+        }
+        
+        // If we get here, return the base dashboard with mock team data
+        return {
+          ...baseDashboard,
+          pendingRequests: [],
+          teamAvailability: Array(7).fill(0).map((_, i) => {
+            const date = new Date();
+            date.setDate(date.getDate() + i);
+            return {
+              date: formatDate(date),
+              isWeekend: date.getDay() === 0 || date.getDay() === 6,
+              isHoliday: false,
+              totalUsers: 0,
+              availableUsers: [],
+              availableCount: 0,
+              usersOnLeave: [],
+              onLeaveCount: 0
+            };
+          })
+        };
+      } catch (error) {
+        console.error("Error in HR dashboard query:", error);
+        // Return a minimal dashboard to prevent UI errors
+        return getMockHRDashboardData();
+      }
+    },
+    // Always run this query, even if employee dashboard fails
+    retry: 2,
+    retryDelay: 1000
+  });
+
+  // Note: Employee dashboard data is already fetched above
 
   // Mock data for pending requests fallback
   const getMockPendingRequestsData = () => {
@@ -132,6 +182,13 @@ const HRDashboardPage: React.FC = () => {
   
   // Handle errors from queries
   React.useEffect(() => {
+    // Clear any previous errors if all data is loaded successfully
+    if (hrDashboard && employeeDashboard && allPendingRequests) {
+      setError(null);
+      return;
+    }
+    
+    // Only show one error at a time, prioritizing the most important one
     if (hrError) {
       const errorMessage = (hrError as any).response?.data?.message || 
                           (hrError as Error).message || 
@@ -143,15 +200,15 @@ const HRDashboardPage: React.FC = () => {
                           (employeeError as Error).message || 
                           "Failed to load employee dashboard data";
       console.error("Employee Dashboard Error Details:", employeeError);
-      setError(`Employee Dashboard Error: ${errorMessage}`);
+      setError(`Employee Dashboard Error: ${errorMessage}. Using offline mode.`);
     } else if (pendingError) {
       const errorMessage = (pendingError as any).response?.data?.message || 
                           (pendingError as Error).message || 
                           "Failed to load pending requests";
       console.error("Pending Requests Error Details:", pendingError);
-      setError(`Pending Requests Error: ${errorMessage}`);
+      setError(`Pending Requests Error: ${errorMessage}. Using offline mode.`);
     }
-  }, [hrError, employeeError, pendingError]);
+  }, [hrError, employeeError, pendingError, hrDashboard, employeeDashboard, allPendingRequests]);
   
   // Debug log to see what data is being received
   console.log("HR Dashboard Data:", hrDashboard);
@@ -188,12 +245,23 @@ const HRDashboardPage: React.FC = () => {
           className="mb-6"
         />
       )}
+      
+      {/* Show offline mode notice if there are errors but we're still showing data */}
+      {(hrError || employeeError || pendingError) && !isLoading && !error && (
+        <Alert
+          variant="warning"
+          message="Some data couldn't be loaded. Showing limited information in offline mode."
+          onClose={() => {}}
+          className="mb-6"
+        />
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
         </div>
       ) : (
+        // Show data even if there are errors - we'll use fallback data
         <div className="space-y-6">
           {/* HR Dashboard */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

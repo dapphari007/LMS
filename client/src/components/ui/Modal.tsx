@@ -1,20 +1,20 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef, ReactNode } from "react";
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   size?: "sm" | "md" | "lg";
 }
 
-const Modal: React.FC<ModalProps> = ({
+const Modal = ({
   isOpen,
   onClose,
   title,
   children,
   size = "md",
-}) => {
+}: ModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Close modal when clicking outside

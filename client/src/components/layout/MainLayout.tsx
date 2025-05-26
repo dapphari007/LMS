@@ -44,18 +44,34 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     },
   ];
 
+  // Check if user has permission to view team leaves
+  const hasTeamLeavePermission = 
+    user?.role === "manager" || 
+    user?.role === "team_lead" || 
+    user?.role === "hr" || 
+    user?.role === "super_admin" || 
+    user?.role === "admin" ||
+    user?.roleObj?.permissions?.includes('view_team_leaves') ||
+    user?.roleObj?.permissions?.includes('hr');
+    
+  // Debug log to check permissions
+  console.log("User role:", user?.role);
+  console.log("User permissions:", user?.roleObj?.permissions);
+  console.log("Has team leave permission:", hasTeamLeavePermission);
+
   // Additional navigation items for managers, team leads, HR, and admins
   const managerNavigation = [
-    { name: "Team Leaves", href: "/team-leaves", icon: UserGroupIcon },
+    ...(hasTeamLeavePermission ? [{ name: "Team Leaves", href: "/team-leaves", icon: UserGroupIcon }] : []),
     { name: "Leave Calendar", href: "/leave-calendar", icon: CalendarDaysIcon },
   ];
 
   const teamLeadNavigation = [
-    { name: "Team Leaves", href: "/team-leaves", icon: UserGroupIcon },
+    ...(hasTeamLeavePermission ? [{ name: "Team Leaves", href: "/team-leaves", icon: UserGroupIcon }] : []),
     { name: "Leave Calendar", href: "/leave-calendar", icon: CalendarDaysIcon },
   ];
 
   const hrNavigation = [
+    // Always include Team Leaves for HR role
     { name: "Team Leaves", href: "/team-leaves", icon: UserGroupIcon },
     { name: "Leave Calendar", href: "/leave-calendar", icon: CalendarDaysIcon },
     {
@@ -128,7 +144,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       return location.pathname === "/approval-management" || 
              location.pathname === "/approval-workflows" ||
              location.pathname === "/workflow-categories" ||
-             location.pathname === "/approver-types";
+             location.pathname === "/approver-types" ||
+             location.pathname === "/workflow-levels";
     }
     
     return false;
@@ -192,7 +209,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                     </Link>
                   ))}
 
-                  {user?.role === "manager" &&
+                  {(user?.role === "manager" || user?.dashboardType === "manager") &&
                     managerNavigation.map((item) => (
                       <Link
                         key={item.name}
@@ -216,7 +233,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                       </Link>
                     ))}
 
-                  {user?.role === "team_lead" &&
+                  {(user?.role === "team_lead" || user?.dashboardType === "team_lead") &&
                     teamLeadNavigation.map((item) => (
                       <Link
                         key={item.name}
@@ -240,7 +257,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                       </Link>
                     ))}
 
-                  {user?.role === "hr" &&
+                  {(user?.role === "hr" || user?.dashboardType === "hr") &&
                     hrNavigation.map((item) => (
                       <Link
                         key={item.name}
@@ -350,7 +367,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 </Link>
               ))}
 
-              {user?.role === "manager" && (
+              {(user?.role === "manager" || user?.dashboardType === "manager") && (
                 <>
                   <div className="mt-8 mb-2 px-3">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -381,7 +398,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 </>
               )}
 
-              {user?.role === "team_lead" && (
+              {(user?.role === "team_lead" || user?.dashboardType === "team_lead") && (
                 <>
                   <div className="mt-8 mb-2 px-3">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -412,7 +429,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 </>
               )}
 
-              {user?.role === "hr" && (
+              {(user?.role === "hr" || user?.dashboardType === "hr") && (
                 <>
                   <div className="mt-8 mb-2 px-3">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">

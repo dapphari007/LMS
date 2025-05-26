@@ -52,11 +52,24 @@ const TeamLeavesPage: React.FC = () => {
   
   // Check if the current user can approve a specific leave request using the shared utility
   const canApproveRequest = (request: LeaveRequest) => {
-    return canApproveRequestUtil(userRole, hasCustomAdminRole, request.status, request.metadata);
+    const requestUserRole = request.user?.role;
+    return canApproveRequestUtil(userRole, hasCustomAdminRole, request.status, request.metadata, requestUserRole);
   };
 
+  // Check if user has permission to view team leaves
+  const hasTeamLeavePermission = 
+    user?.role === "manager" || 
+    user?.role === "team_lead" || 
+    user?.role === "hr" || 
+    user?.role === "super_admin" || 
+    user?.role === "admin" ||
+    user?.dashboardType === "manager" ||
+    user?.dashboardType === "team_lead" ||
+    user?.dashboardType === "hr" ||
+    user?.roleObj?.permissions?.includes('view_team_leaves');
+
   // Fetch team leave requests
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error: fetchError, refetch } = useQuery({
     queryKey: ["teamLeaveRequests", selectedYear, selectedStatus],
     queryFn: async () => {
       try {
@@ -74,9 +87,13 @@ const TeamLeavesPage: React.FC = () => {
           });
         }
       } catch (err) {
-        throw err;
+        console.error("Error fetching team leave requests:", err);
+        // Return empty data instead of throwing
+        return { data: [], total: 0 };
       }
     },
+    enabled: hasTeamLeavePermission, // Only run query if user has permission
+    retry: 1,
   });
   
   // Use the shared handlers hook
@@ -109,6 +126,28 @@ const TeamLeavesPage: React.FC = () => {
 
   // Use the shared approval workflow modal component
 
+  // If user doesn't have permission, show a message
+  if (!hasTeamLeavePermission) {
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900 mb-6">
+          Team Leave Requests
+        </h1>
+        <Card>
+          <div className="py-8 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H9m3-4V8a3 3 0 00-3-3H6a3 3 0 00-3 3v1m12-1v1m0 0v1m0-1h2m-2 0h-2" />
+            </svg>
+            <h2 className="text-xl font-medium text-gray-900 mb-2">Permission Required</h2>
+            <p className="text-gray-500 max-w-md mx-auto">
+              You don't have permission to view team leave requests. Please contact your administrator if you believe this is an error.
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -131,6 +170,15 @@ const TeamLeavesPage: React.FC = () => {
           variant="error"
           message={error}
           onClose={() => setError(null)}
+          className="mb-6"
+        />
+      )}
+
+      {fetchError && (
+        <Alert
+          variant="error"
+          message="Failed to load team leave requests. Please try again later."
+          onClose={() => {}}
           className="mb-6"
         />
       )}

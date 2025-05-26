@@ -1,16 +1,16 @@
-import React from 'react';
+import { ChangeEvent } from 'react';
 
 interface CheckboxProps {
   id: string;
   name: string;
   label: string;
   checked?: boolean;
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
   className?: string;
 }
 
-const Checkbox: React.FC<CheckboxProps> = ({
+const Checkbox = ({
   id,
   name,
   label,
@@ -18,7 +18,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
   onChange,
   disabled = false,
   className = '',
-}) => {
+}: CheckboxProps) => {
   return (
     <div className={`flex items-center ${className}`}>
       <input

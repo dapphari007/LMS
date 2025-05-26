@@ -291,12 +291,28 @@ export default function EditApprovalWorkflowPage() {
         backendApproverType = step.approverType;
       }
       
+      // Create fallback roles based on the approver type
+      let fallbackRoles: string[] = [];
+      if (step.approverType === "team_lead") {
+        fallbackRoles = ["TEAM_LEAD"];
+      } else if (step.approverType === "manager") {
+        fallbackRoles = ["MANAGER"];
+      } else if (step.approverType === "hr") {
+        fallbackRoles = ["HR"];
+      } else if (step.approverType === "department_head") {
+        fallbackRoles = ["MANAGER"];
+      } else if (step.approverType === "specific_user" && step.approverId) {
+        fallbackRoles = [step.approverId];
+      } else {
+        fallbackRoles = [roleValue];
+      }
+      
       const approvalLevel = {
         level: index + 1,
         roles: [roleValue],
         departmentSpecific: step.approverType !== "specific_user", // Set department-specific for role-based approvers
         approverType: backendApproverType,
-        fallbackRoles: [roleValue], // Add fallback roles matching the primary role
+        fallbackRoles: fallbackRoles,
         required: step.required
       };
       

@@ -1,17 +1,17 @@
-import React, { HTMLAttributes } from 'react';
+import { HTMLAttributes, ReactNode } from 'react';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   title?: string;
-  footer?: React.ReactNode;
+  footer?: ReactNode;
 }
 
-const Card: React.FC<CardProps> = ({ 
+const Card = ({ 
   children, 
   title, 
   footer,
   className = '',
   ...props 
-}) => {
+}: CardProps) => {
   return (
     <div 
       className={`bg-white rounded-lg shadow-md overflow-hidden ${className}`}

@@ -55,5 +55,10 @@ export const updateRole = async (id: string, data: Partial<Role>): Promise<Role>
 };
 
 export const deleteRole = async (id: string): Promise<void> => {
-  await del(`/roles/${id}`);
+  try {
+    await del(`/roles/${id}`);
+  } catch (error) {
+    console.error("Error deleting role:", error);
+    throw error;
+  }
 };

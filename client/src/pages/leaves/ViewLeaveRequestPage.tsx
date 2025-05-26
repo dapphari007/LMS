@@ -38,14 +38,17 @@ export default function ViewLeaveRequestPage() {
   
   // Check if current user is eligible to approve at the next level in the workflow
   const canApproveRequest = useMemo(() => {
-    if (!leaveRequest) return false;
+    if (!leaveRequest || !leaveRequest.user) return false;
     
     const hasCustomAdminRole = user?.roleObj?.permissions?.includes('admin') || false;
+    const requestUserRole = leaveRequest.user.role;
+    
     return canApproveRequestUtil(
       user?.role || '', 
       hasCustomAdminRole,
       leaveRequest.status,
-      leaveRequest.metadata
+      leaveRequest.metadata,
+      requestUserRole
     );
   }, [user, leaveRequest]);
 

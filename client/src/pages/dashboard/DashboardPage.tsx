@@ -109,12 +109,19 @@ const DashboardPage: React.FC = () => {
   
   // Determine dashboard type without state
   const dashboardType = user.dashboardType || user.role || 'employee';
-  const isManager = dashboardType === "manager";
+  
+  // Check if user has manager dashboard type but doesn't have appropriate role
+  // If so, treat them as an employee to prevent API permission errors
+  const hasManagerPermissions = ["manager", "team_lead", "super_admin", "hr"].includes(user.role);
+  const isManager = dashboardType === "manager" && hasManagerPermissions;
   
   // Render HR dashboard if needed
   if (dashboardType === "hr") {
     return <HRDashboardPage />;
   }
+  
+  // Log dashboard access for debugging
+  console.log("Dashboard access - Type:", dashboardType, "Role:", user.role, "Is Manager:", isManager);
 
   // Function to refresh dashboard data
   const refreshDashboard = () => {
@@ -136,9 +143,15 @@ const DashboardPage: React.FC = () => {
   const { data: managerDashboard, isLoading: isManagerLoading } = useQuery<ApiManagerDashboard, Error, ManagerDashboard>({
     queryKey: ["managerDashboard"],
     queryFn: getManagerDashboard,
+    // Only enable this query if the user has manager permissions
     enabled: isManager,
     onError: (err: Error) => {
-      setError(err.message || "Failed to load dashboard data");
+      console.error("Manager dashboard error:", err);
+      // Don't show error to user, just silently fail and show employee dashboard
+      // This prevents confusion when a user has manager dashboard type but not the role
+      if (hasManagerPermissions) {
+        setError(err.message || "Failed to load manager dashboard data");
+      }
     },
   } as UseQueryOptions<ApiManagerDashboard, Error, ManagerDashboard>);
 
@@ -335,8 +348,8 @@ const DashboardPage: React.FC = () => {
             </Card>
           </div>
 
-          {/* Manager Dashboard */}
-          {isManager && managerDashboard && (
+          {/* Manager Dashboard - Only show if user has manager permissions and data loaded successfully */}
+          {isManager && hasManagerPermissions && managerDashboard && (
             <div className="mt-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

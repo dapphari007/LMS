@@ -60,7 +60,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       
       if (!isDirectlyAllowed && !hasCustomAdminRole) {
         console.log("ProtectedRoute - User role not allowed:", user.role, "Allowed roles:", allowedRoles);
-        return <Navigate to="/" replace />;
+        return <Navigate to="/dashboard" replace />;
       }
     }
   }
@@ -72,12 +72,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (user.role === "super_admin" || user.dashboardType === "super_admin") {
       return <Navigate to="/super-admin-dashboard" replace />;
     } else {
-      return <Navigate to="/" replace />;
+      return <Navigate to="/dashboard" replace />;
     }
   }
   
-  // Handle dashboard type redirects for root path
-  if (location.pathname === "/" && user) {
+  // Handle dashboard type redirects for dashboard path
+  if (location.pathname === "/dashboard" && user) {
     const dashboardType = user.dashboardType || user.role;
     
     // For users with dashboardType "admin" or role "super_admin", redirect to super-admin-dashboard
@@ -85,6 +85,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       console.log("ProtectedRoute - Redirecting to super-admin-dashboard based on dashboardType:", dashboardType);
       return <Navigate to="/super-admin-dashboard" replace />;
     }
+    
+    // We don't need to redirect users with manager dashboard type but insufficient role permissions
+    // They will be handled by the DashboardPage component which checks permissions
+    // This prevents infinite redirect loops
   }
   
   console.log("ProtectedRoute - Rendering protected content for path:", location.pathname);

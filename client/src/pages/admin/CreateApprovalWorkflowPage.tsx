@@ -6,6 +6,7 @@ import { createApprovalWorkflow } from "../../services/approvalWorkflowService";
 import { getAllUsers } from "../../services/userService";
 import { getAllWorkflowCategories, WorkflowCategory } from "../../services/workflowCategoryService";
 import { getAllApproverTypes, ApproverType } from "../../services/approverTypeService";
+import { getWorkflowLevelsForApprovalWorkflow } from "../../services/workflowLevelService";
 
 type FormValues = {
   name: string;
@@ -40,6 +41,11 @@ export default function CreateApprovalWorkflowPage() {
   const { data: approverTypes = [] } = useQuery({
     queryKey: ["approverTypes"],
     queryFn: () => getAllApproverTypes({ isActive: true }),
+  });
+  
+  const { data: workflowLevels = [] } = useQuery({
+    queryKey: ["workflowLevelsForApproval"],
+    queryFn: getWorkflowLevelsForApprovalWorkflow,
   });
 
   const {
@@ -242,11 +248,16 @@ export default function CreateApprovalWorkflowPage() {
       return;
     }
     
-    // Use the first approver type code if available, otherwise default to "team_lead"
-    const defaultApproverType = approverTypes.length > 0 ? approverTypes[0].code : "team_lead";
+    // Get the next workflow level based on current steps
+    const nextLevel = fields.length + 1;
+    const matchingLevel = workflowLevels.find(level => level.level === nextLevel);
+    
+    // Use the matching level's approver type if available, otherwise use the first approver type or default to "team_lead"
+    const defaultApproverType = matchingLevel?.approverType || 
+                               (approverTypes.length > 0 ? approverTypes[0].code : "team_lead");
     
     append({
-      order: fields.length + 1,
+      order: nextLevel,
       approverType: defaultApproverType,
       required: true,
     });
@@ -375,6 +386,23 @@ export default function CreateApprovalWorkflowPage() {
             </span>
           </label>
         </div>
+
+        {workflowLevels.length > 0 && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 p-4 rounded-md">
+            <h3 className="text-lg font-semibold text-blue-800 mb-2">Available Workflow Levels</h3>
+            <p className="text-blue-700 mb-2">
+              The system has the following predefined workflow levels that will be used as defaults when adding steps:
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
+              {workflowLevels.map((level) => (
+                <div key={level.level} className="bg-white p-3 rounded border border-blue-100 shadow-sm">
+                  <div className="font-medium text-blue-800">Level {level.level}: {level.name}</div>
+                  <div className="text-sm text-gray-600 mt-1">{level.description}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">

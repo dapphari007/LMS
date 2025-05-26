@@ -53,6 +53,19 @@ export const get = async <T>(
     if (error instanceof AxiosError && error.response) {
       console.error(`Response status: ${error.response.status}`);
       console.error(`Response data:`, error.response.data);
+      
+      // Add more detailed logging for debugging
+      if (error.response.status === 401) {
+        console.error("Authentication error - token may be invalid or expired");
+      } else if (error.response.status === 403) {
+        console.error("Permission error - user may not have access to this resource");
+      } else if (error.response.status === 404) {
+        console.error("Resource not found - endpoint may not exist or be misconfigured");
+      } else if (error.response.status >= 500) {
+        console.error("Server error - backend service may be down or experiencing issues");
+      }
+    } else if (error instanceof Error) {
+      console.error("Network or other error:", error.message);
     }
     throw error;
   }

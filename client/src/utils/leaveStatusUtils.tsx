@@ -86,17 +86,20 @@ export const getApprovalLevel = (
  * @param hasCustomAdminRole Whether the user has custom admin permissions
  * @param requestStatus The leave request status
  * @param metadata The leave request metadata
+ * @param requestUserRole Optional: The role of the user who made the request
  * @returns Boolean indicating if the user can approve the request
  */
 export const canApproveRequest = (
   userRole: string,
   hasCustomAdminRole: boolean = false,
   requestStatus: string,
-  metadata?: LeaveRequestMetadata
+  metadata?: LeaveRequestMetadata,
+  requestUserRole?: string
 ): boolean => {
   const userApprovalLevel = getApprovalLevel(userRole, hasCustomAdminRole);
   const isAdmin = userRole === "admin";
   const isSuperAdmin = userRole === "super_admin";
+  const isManager = userRole === "manager";
   
   // If user has no approval level, they can't approve anything
   if (userApprovalLevel === 0) return false;
@@ -104,7 +107,22 @@ export const canApproveRequest = (
   // Super admins and admins can approve any request
   if (isSuperAdmin || isAdmin || hasCustomAdminRole) return true;
   
-  // For pending requests, only L1 approvers can approve
+  // Special case for Team Lead requests - Managers can approve them directly
+  if (requestUserRole === "team_lead" && isManager && requestStatus === "pending") {
+    return true;
+  }
+  
+  // Special case for Manager requests - HR can approve them directly
+  if (requestUserRole === "manager" && userRole === "hr" && requestStatus === "pending") {
+    return true;
+  }
+  
+  // Special case for HR requests - Admins can approve them directly
+  if (requestUserRole === "hr" && (userRole === "admin" || userRole === "super_admin") && requestStatus === "pending") {
+    return true;
+  }
+  
+  // For pending requests, only L1 approvers can approve (unless it's a special case)
   if (requestStatus === "pending") {
     return userApprovalLevel === 1;
   }

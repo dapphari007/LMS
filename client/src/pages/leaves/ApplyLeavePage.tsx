@@ -16,6 +16,7 @@ import Alert from "../../components/ui/Alert";
 import { getErrorMessage } from "../../utils/errorUtils";
 import { calculateBusinessDays } from "../../utils/dateUtils";
 import { useMyLeaveBalances } from "../../hooks/useLeaveBalances";
+import ApprovalWorkflowPreview from "../../components/leaves/ApprovalWorkflowPreview";
 
 // Helper function to calculate remaining days consistently
 const calculateRemainingDays = (leaveBalance: LeaveBalance) => {
@@ -361,6 +362,14 @@ const ApplyLeavePage: React.FC = () => {
                   </p>
                 )}
               </div>
+            )}
+            
+            {/* Display approval workflow preview */}
+            {startDate && endDate && duration > 0 && !warning && (
+              <ApprovalWorkflowPreview 
+                duration={duration} 
+                isLoading={isLoading || isLoadingLeaveTypes || isLoadingHolidays}
+              />
             )}
 
             <div className="flex justify-end space-x-4">

@@ -1,16 +1,16 @@
-import React from 'react';
+import { ReactNode } from 'react';
 
 interface BadgeProps {
   variant?: 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'default';
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }
 
-const Badge: React.FC<BadgeProps> = ({ 
+const Badge = ({ 
   variant = 'default', 
   children, 
   className = '' 
-}) => {
+}: BadgeProps) => {
   const variantClasses = {
     primary: 'bg-primary-100 text-primary-800',
     success: 'bg-green-100 text-green-800',

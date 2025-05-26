@@ -1,4 +1,4 @@
-import React from "react";
+import { ReactNode } from "react";
 import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -14,10 +14,10 @@ export interface AlertProps {
   message: string;
   onClose?: () => void;
   className?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
 }
 
-const Alert: React.FC<AlertProps> = ({
+const Alert = ({
   variant = "info",
   type,
   title,
@@ -25,7 +25,7 @@ const Alert: React.FC<AlertProps> = ({
   onClose,
   className = "",
   action,
-}) => {
+}: AlertProps) => {
   // Use type prop if variant is not provided (for backward compatibility)
   const actualVariant = type || variant;
   const variantClasses = {
