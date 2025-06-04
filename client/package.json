@@ -8,7 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "vite"
+    "start": "vite",
+    "deploy": "git add . && git commit -m \"Client deployment commit\" && git push origin main",
+    "deploy:staging": "git add . && git commit -m \"Client staging deployment\" && git push origin staging",
+    "deploy:prod": "npm run build && git add . && git commit -m \"Client production deployment\" && git push origin production"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

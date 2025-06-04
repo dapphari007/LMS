@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import axios from "axios";
+
 import {
   getLeaveTypes,
   activateLeaveType,
@@ -13,6 +13,7 @@ import {
   bulkCreateLeaveBalances,
   checkLeaveTypeBalances,
   createAllLeaveBalancesForAllUsers,
+  checkDatabaseFlushed,
 } from "../../services/leaveBalanceService";
 import { LeaveType } from "../../types";
 import Card from "../../components/ui/Card";
@@ -20,7 +21,6 @@ import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
 import { getErrorMessage } from "../../utils/errorUtils";
-import config from "../../config";
 
 // Default leave types data
 const defaultLeaveTypes = [
@@ -134,18 +134,18 @@ const LeaveTypesPage: React.FC = () => {
 
   // Check if database is flushed
   useEffect(() => {
-    const checkDatabaseFlushed = async () => {
+    const fetchDatabaseFlushedStatus = async () => {
       try {
-        const response = await axios.get(
-          `${config.apiUrl}/api/leave-balances/check-flushed`
-        );
-        setIsDatabaseFlushed(response.data.isFlushed);
+        console.log("Checking if database is flushed...");
+        const response = await checkDatabaseFlushed();
+        console.log("Database flush status response:", response);
+        setIsDatabaseFlushed(response.isFlushed);
       } catch (err) {
         console.error("Error checking database flush status:", err);
         setIsDatabaseFlushed(false);
       }
     };
-    checkDatabaseFlushed();
+    fetchDatabaseFlushedStatus();
   }, []);
 
   // Fetch leave types
@@ -567,26 +567,25 @@ const LeaveTypesPage: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      <div>
-                        {!createdTypes[leaveType.name] ? (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() =>
-                              handleCreateDefaultLeaveType(leaveType)
-                            }
-                            disabled={
-                              isLoading || createLeaveTypeMutation.isPending
-                            }
-                          >
-                            Create
-                          </Button>
-                        ) : (
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() =>
+                            handleCreateDefaultLeaveType(leaveType)
+                          }
+                          disabled={
+                            isLoading || createLeaveTypeMutation.isPending || createdTypes[leaveType.name]
+                          }
+                        >
+                          {createdTypes[leaveType.name] ? "Created" : "Create"}
+                        </Button>
+                        {createdTypes[leaveType.name] && (
                           <Badge
                             variant="success"
-                            className="px-3 py-1 text-sm"
+                            className="px-2 py-1 text-xs"
                           >
-                            Created
+                            ✓
                           </Badge>
                         )}
                       </div>

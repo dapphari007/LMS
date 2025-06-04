@@ -52,8 +52,167 @@ const TeamLeavesPage: React.FC = () => {
   
   // Check if the current user can approve a specific leave request using the shared utility
   const canApproveRequest = (request: LeaveRequest) => {
-    const requestUserRole = request.user?.role;
-    return canApproveRequestUtil(userRole, hasCustomAdminRole, request.status, request.metadata, requestUserRole);
+    // First check if this is the user's own request - users shouldn't approve their own requests
+    if (user?.id === request.userId) {
+      return false;
+    }
+    
+    // Get the current user's approval level
+    const userApprovalLevel = getApprovalLevel();
+    
+    // For pending requests, check if the user's level matches the required first level
+    if (request.status === 'pending') {
+      // Log for debugging
+      console.log('Checking initial approval for pending request:', {
+        userRole,
+        userApprovalLevel,
+        requestStatus: request.status,
+        metadata: request.metadata,
+        requestUserRole: request.user?.role
+      });
+      
+      // If there's a custom approval workflow defined
+      if (request.metadata && request.metadata.requiredApprovalLevels && request.metadata.requiredApprovalLevels.length > 0) {
+        // Get the first required approval level
+        const firstRequiredLevel = Math.min(...request.metadata.requiredApprovalLevels);
+        console.log(`First required approval level: ${firstRequiredLevel}, user level: ${userApprovalLevel}`);
+        
+        // Check for special cases based on the request user's role
+        if (request.user?.role) {
+          // If request is from a Manager and approver is HR
+          if (request.user.role === 'manager' && userRole === 'hr') {
+            console.log('HR can approve manager request');
+            return true;
+          }
+          
+          // If request is from HR and approver is Super Admin
+          if (request.user.role === 'hr' && (userRole === 'super_admin' || userRole === 'admin')) {
+            console.log('Super Admin can approve HR request');
+            return true;
+          }
+          
+          // If request is from a Team Lead and approver is a Manager
+          if (request.user.role === 'team_lead' && userRole === 'manager') {
+            console.log('Manager can approve team lead request');
+            return true;
+          }
+        }
+        
+        // User can approve if their level matches the first required level
+        return userApprovalLevel === firstRequiredLevel;
+      } else {
+        // Check if the request is from a team lead and the current user is a manager
+        if (request.user?.role === 'team_lead' && userRole === 'manager') {
+          console.log('Manager can approve team lead request');
+          return true;
+        }
+        
+        // Check if the request is from a manager and the current user is HR
+        if (request.user?.role === 'manager' && userRole === 'hr') {
+          console.log('HR can approve manager request');
+          return true;
+        }
+        
+        // Check if the request is from HR and the current user is Super Admin
+        if (request.user?.role === 'hr' && (userRole === 'super_admin' || userRole === 'admin')) {
+          console.log('Super Admin can approve HR request');
+          return true;
+        }
+        
+        // If no custom workflow, only users with approval level 1 (team leads) can approve initial requests
+        return userApprovalLevel === 1;
+      }
+    }
+    
+    // For partially approved requests, check if the user's level matches the next required level
+    if (request.status === 'partially_approved' && request.metadata) {
+      const currentApprovalLevel = request.metadata.currentApprovalLevel || 0;
+      
+      // If there's a custom approval workflow defined
+      if (request.metadata.requiredApprovalLevels && request.metadata.requiredApprovalLevels.length > 0) {
+        // Sort the required levels to ensure they're in ascending order
+        const sortedLevels = [...request.metadata.requiredApprovalLevels].sort((a, b) => a - b);
+        
+        // Find the next required level in the workflow
+        const nextRequiredLevel = sortedLevels.find(level => level > currentApprovalLevel);
+        
+        // Log for debugging
+        console.log('Checking next level approval for partially approved request:', {
+          userRole,
+          userApprovalLevel,
+          currentApprovalLevel,
+          nextRequiredLevel,
+          requiredLevels: sortedLevels,
+          requestStatus: request.status,
+          requestUserRole: request.user?.role
+        });
+        
+        // Check for special cases based on the request user's role
+        if (request.user?.role) {
+          // If request is from a Manager and approver is HR
+          if (request.user.role === 'manager' && userRole === 'hr') {
+            console.log('HR can approve manager request in partially approved state');
+            return true;
+          }
+          
+          // If request is from HR and approver is Super Admin
+          if (request.user.role === 'hr' && (userRole === 'super_admin' || userRole === 'admin')) {
+            console.log('Super Admin can approve HR request in partially approved state');
+            return true;
+          }
+          
+          // If request is from a Team Lead and approver is a Manager
+          if (request.user.role === 'team_lead' && userRole === 'manager') {
+            console.log('Manager can approve team lead request in partially approved state');
+            return true;
+          }
+        }
+        
+        // User can approve if their level matches the next required level
+        return userApprovalLevel === nextRequiredLevel;
+      } else {
+        // Check if the request is from a team lead and the current user is a manager
+        if (request.user?.role === 'team_lead' && userRole === 'manager') {
+          console.log('Manager can approve team lead request');
+          return true;
+        }
+        
+        // Check if the request is from a manager and the current user is HR
+        if (request.user?.role === 'manager' && userRole === 'hr') {
+          console.log('HR can approve manager request in default workflow');
+          return true;
+        }
+        
+        // Check if the request is from HR and the current user is Super Admin
+        if (request.user?.role === 'hr' && (userRole === 'super_admin' || userRole === 'admin')) {
+          console.log('Super Admin can approve HR request in default workflow');
+          return true;
+        }
+        
+        // If no custom workflow, use the default sequential workflow
+        const nextRequiredLevel = currentApprovalLevel + 1;
+        
+        // Log for debugging
+        console.log('Using default sequential workflow for partially approved request:', {
+          userRole,
+          userApprovalLevel,
+          currentApprovalLevel,
+          nextRequiredLevel,
+          requestStatus: request.status
+        });
+        
+        // User can approve if their level matches the next required level
+        return userApprovalLevel === nextRequiredLevel;
+      }
+    }
+    
+    // For pending deletion requests, admins and super admins can approve
+    if (request.status === 'pending_deletion') {
+      return userRole === 'admin' || userRole === 'super_admin' || hasCustomAdminRole;
+    }
+    
+    // Default to the utility function for any other cases
+    return canApproveRequestUtil(userRole, hasCustomAdminRole, request.status, request.metadata);
   };
 
   // Check if user has permission to view team leaves
@@ -88,8 +247,8 @@ const TeamLeavesPage: React.FC = () => {
         }
       } catch (err) {
         console.error("Error fetching team leave requests:", err);
-        // Return empty data instead of throwing
-        return { data: [], total: 0 };
+        // Return empty data instead of throwing, with the same structure as GetLeaveRequestsResponse
+        return { leaveRequests: [], count: 0 };
       }
     },
     enabled: hasTeamLeavePermission, // Only run query if user has permission
@@ -305,9 +464,11 @@ const TeamLeavesPage: React.FC = () => {
                             >
                               {request.status === "pending_deletion" 
                                 ? "Review Deletion" 
-                                : request.status === "partially_approved" 
+                                : request.status === "partially_approved" && request.metadata?.requiredApprovalLevels
                                   ? `Approve/Reject as Step ${(request.metadata?.currentApprovalLevel || 0) + 1}` 
-                                  : `Approve/Reject as Step ${getApprovalLevel()}`}
+                                  : request.status === "pending" && request.metadata?.requiredApprovalLevels
+                                    ? `Approve/Reject as Step 1`
+                                    : "Approve/Reject"}
                             </Button>
                           ) : (
                             <Button

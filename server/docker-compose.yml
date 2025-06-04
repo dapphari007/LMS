@@ -5,41 +5,14 @@ services:
     build: .
     ports:
       - "4000:3000"
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       - PORT=3000
       - HOST=0.0.0.0
       - NODE_ENV=production
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_USERNAME=postgres
-      - DB_PASSWORD=postgres
-      - DB_DATABASE=leave_management
-      - JWT_SECRET=your_jwt_secret_key
+      - DATABASE_URL=postgresql://pradeepkalyan:Ie4QVOtO9IPfD3NYLk0nhZLpVBx3BYrm@dpg-d0qqb93uibrs73erg1eg-a.oregon-postgres.render.com/leave_management_odpr?sslmode=require
+      - JWT_SECRET=your_jwt_secret_key?sslmode=require
       - JWT_EXPIRATION=1d
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
 
-  db:
-    image: postgres:14-alpine
-    ports:
-      - "5434:5432"
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=leave_management
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-volumes:
-  postgres_data:

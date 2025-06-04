@@ -2,6 +2,9 @@
   "name": "leave_mgmt_new",
   "version": "1.0.0",
   "main": "index.js",
+  "engines": {
+    "node": ">=18.18"
+  },
   "scripts": {
     "start": "node dist/server.js",
     "dev": "nodemon --exec ts-node src/server.ts",
@@ -11,6 +14,7 @@
     "migration:run": "npm run typeorm migration:run",
     "migration:revert": "npm run typeorm migration:revert",
     "run:migrations": "ts-node src/scripts/runMigrations.ts",
+    "db:repair": "ts-node src/scripts/fix-migrations.ts && npm run run:migrations",
     "ensure:default-users": "ts-node -e \"require('./src/utils/ensure-default-users').ensureDefaultUsers().then(() => console.log('Default users check completed')).catch((err) => { console.error(err); process.exit(1); })\"",
     "create:test-user": "ts-node src/scripts/createTestUser.ts",
     "create:default-roles": "ts-node src/scripts/createDefaultRoles.ts",
@@ -18,10 +22,15 @@
     "init:approval-workflows": "ts-node src/scripts/initApprovalWorkflowsScript.ts",
     "db:reset": "ts-node src/scripts/resetDatabase.ts",
     "db:fresh": "npm run db:reset && npm run dev",
+    "check:leave-type": "ts-node src/scripts/checkLeaveType.ts",
+    "check:leave-balances": "ts-node src/scripts/checkLeaveTypeBalances.ts",
+
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prisma:test": "ts-node src/scripts/test-prisma.ts",
     "prisma:generate": "prisma generate",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "deploy": "git add . && git commit -m \"Server deployment commit\" && git push origin main",
+    "deploy:staging": "git add . && git commit -m \"Server staging deployment\" && git push origin staging",
+    "deploy:prod": "npm run build && git add . && git commit -m \"Server production deployment\" && git push origin production"
   },
   "keywords": [
     "leave management",
@@ -58,3 +67,4 @@
     "typescript": "^5.2.2"
   }
 }
+

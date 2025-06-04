@@ -33,12 +33,20 @@ export default function EditLeaveTypePage() {
 
   console.log("EditLeaveTypePage - ID param:", id);
 
-  const { data, isLoading: isLoadingLeaveType, isError } = useLeaveType(id);
+  const { data, isLoading: isLoadingLeaveType, isError, error: apiError } = useLeaveType(id);
   console.log("EditLeaveTypePage - Data from useLeaveType:", data);
 
   // Extract the leave type from the response
   const leaveType = data?.leaveType;
   console.log("EditLeaveTypePage - Leave type:", leaveType);
+  
+  // Log any errors that occur during data fetching
+  useEffect(() => {
+    if (isError) {
+      console.error("Error fetching leave type:", apiError);
+      setError(apiError instanceof Error ? apiError.message : "Failed to load leave type data");
+    }
+  }, [isError, apiError]);
 
   // Check if balances already exist for this leave type
   const { data: balanceData } = useQuery({
@@ -127,9 +135,20 @@ export default function EditLeaveTypePage() {
 
   // Handle creating leave balances
   const handleCreateLeaveBalances = () => {
-    if (!leaveType) return;
+    if (!leaveType) {
+      setError("Leave type data is not available. Please refresh the page and try again.");
+      return;
+    }
+
+    console.log("Creating leave balances for:", {
+      leaveTypeId: id,
+      totalDays: leaveType.defaultDays,
+      year: currentYear
+    });
 
     setIsCreatingBalances(true);
+    setError(null); // Clear any previous errors
+    
     createLeaveBalancesMutation.mutate({
       leaveTypeId: id as string,
       totalDays: leaveType.defaultDays,
@@ -149,11 +168,22 @@ export default function EditLeaveTypePage() {
     );
   }
 
-  if (!leaveType && !isLoadingLeaveType) {
+  if ((!leaveType && !isLoadingLeaveType) || isError) {
+    const errorMessage = apiError instanceof Error 
+      ? apiError.message 
+      : "Leave type not found or you don't have permission to view it.";
+      
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          Leave type not found or you don't have permission to view it.
+          <p className="font-bold">{errorMessage}</p>
+          <p className="text-sm mt-2">
+            This could be due to an invalid leave type ID or insufficient permissions.
+            Please check the URL and try again, or contact your administrator.
+          </p>
+          <p className="text-sm mt-2">
+            Leave Type ID: {id}
+          </p>
         </div>
         <button
           onClick={() => navigate("/leave-types")}

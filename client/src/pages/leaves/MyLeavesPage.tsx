@@ -32,10 +32,18 @@ const MyLeavesPage: React.FC = () => {
   // Fetch leave requests
   const { data, isLoading, refetch, error: queryError } = useQuery<GetLeaveRequestsResponse>({
     queryKey: ['myLeaveRequests', selectedYear, selectedStatus],
-    queryFn: () => getMyLeaveRequests({
-      year: selectedYear,
-      status: selectedStatus !== 'all' ? selectedStatus as any : undefined,
-    }),
+    queryFn: async () => {
+      try {
+        return await getMyLeaveRequests({
+          year: selectedYear,
+          status: selectedStatus !== 'all' ? selectedStatus as any : undefined,
+        });
+      } catch (err) {
+        console.error("Error fetching my leave requests:", err);
+        // Return empty data with the same structure as GetLeaveRequestsResponse
+        return { leaveRequests: [], count: 0 };
+      }
+    },
   });
   
   // Use the shared leave request actions hook

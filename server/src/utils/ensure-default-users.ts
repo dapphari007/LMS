@@ -34,37 +34,47 @@ export const ensureDefaultUsers = async (): Promise<void> => {
     try {
       // Check if roleId column exists
       await AppDataSource.query(`
-        SELECT roleId FROM users LIMIT 1
+        SELECT "roleId" FROM "users" LIMIT 1
       `).catch(() => {
         throw new Error("roleId column does not exist");
       });
       roleIdExists = true;
     } catch (error) {
-      console.log("roleId column not available yet, skipping role assignments");
+      // Column doesn't exist yet
     }
     
     try {
       // Check if departmentId column exists
       await AppDataSource.query(`
-        SELECT departmentId FROM users LIMIT 1
+        SELECT "departmentId" FROM "users" LIMIT 1
       `).catch(() => {
         throw new Error("departmentId column does not exist");
       });
       departmentIdExists = true;
     } catch (error) {
-      console.log("departmentId column not available yet, skipping department assignments");
+      // Column doesn't exist yet
     }
     
     try {
       // Check if positionId column exists
       await AppDataSource.query(`
-        SELECT positionId FROM users LIMIT 1
+        SELECT "positionId" FROM "users" LIMIT 1
       `).catch(() => {
         throw new Error("positionId column does not exist");
       });
       positionIdExists = true;
     } catch (error) {
-      console.log("positionId column not available yet, skipping position assignments");
+      // Column doesn't exist yet
+    }
+    
+    // Log column status in a single message
+    const missingColumns = [];
+    if (!roleIdExists) missingColumns.push("roleId");
+    if (!departmentIdExists) missingColumns.push("departmentId");
+    if (!positionIdExists) missingColumns.push("positionId");
+    
+    if (missingColumns.length > 0) {
+      console.log(`Missing columns in users table: ${missingColumns.join(", ")}`);
     }
 
     // Only try to use repositories if the columns exist
@@ -78,7 +88,7 @@ export const ensureDefaultUsers = async (): Promise<void> => {
         await roleRepository.find({ take: 1 });
         rolesExist = true;
       } catch (error) {
-        console.log("Roles table not available yet, skipping role assignments");
+        // Roles table not available yet
       }
     }
 
@@ -88,9 +98,7 @@ export const ensureDefaultUsers = async (): Promise<void> => {
         await departmentRepository.find({ take: 1 });
         departmentsExist = true;
       } catch (error) {
-        console.log(
-          "Departments table not available yet, skipping department assignments"
-        );
+        // Departments table not available yet
       }
     }
 
@@ -100,10 +108,18 @@ export const ensureDefaultUsers = async (): Promise<void> => {
         await positionRepository.find({ take: 1 });
         positionsExist = true;
       } catch (error) {
-        console.log(
-          "Positions table not available yet, skipping position assignments"
-        );
+        // Positions table not available yet
       }
+    }
+    
+    // Log missing tables in a single message
+    const missingTables = [];
+    if (!rolesExist && roleIdExists) missingTables.push("roles");
+    if (!departmentsExist && departmentIdExists) missingTables.push("departments");
+    if (!positionsExist && positionIdExists) missingTables.push("positions");
+    
+    if (missingTables.length > 0) {
+      console.log(`Missing tables: ${missingTables.join(", ")}`);
     }
 
     // Define 10 default users with department and position
@@ -246,6 +262,9 @@ export const ensureDefaultUsers = async (): Promise<void> => {
 
     // First, check and create all users
     const createdUsers = [];
+    let createdCount = 0;
+    let existingCount = 0;
+    
     for (const userData of defaultUsers) {
       // Check if user already exists
       const existingUser = await userRepository.findOne({
@@ -253,16 +272,13 @@ export const ensureDefaultUsers = async (): Promise<void> => {
       });
 
       if (existingUser) {
-        console.log(
-          `User ${userData.email} already exists, skipping creation...`
-        );
-
+        existingCount++;
+        
         // Update department and position if they're not set
         if (!existingUser.department || !existingUser.position) {
           existingUser.department = userData.department;
           existingUser.position = userData.position;
           await userRepository.save(existingUser);
-          console.log(`Updated department and position for ${userData.email}`);
         }
 
         createdUsers.push(existingUser);
@@ -277,9 +293,11 @@ export const ensureDefaultUsers = async (): Promise<void> => {
       });
 
       const savedUser = await userRepository.save(user);
-      console.log(`User ${userData.email} created successfully`);
+      createdCount++;
       createdUsers.push(savedUser);
     }
+    
+    console.log(`Users: ${createdCount} created, ${existingCount} already exist`)
 
     // Now set manager IDs for employees
     const engineeringManager = createdUsers.find(
@@ -292,6 +310,8 @@ export const ensureDefaultUsers = async (): Promise<void> => {
         user.role === UserRole.MANAGER && user.department === "Marketing"
     );
 
+    let managerAssignments = 0;
+
     if (engineeringManager) {
       // Find engineering employees and set their manager
       const engineeringEmployees = createdUsers.filter(
@@ -303,7 +323,7 @@ export const ensureDefaultUsers = async (): Promise<void> => {
         if (!employee.managerId) {
           employee.managerId = engineeringManager.id;
           await userRepository.save(employee);
-          console.log(`Set manager for ${employee.email}`);
+          managerAssignments++;
         }
       }
     }
@@ -319,23 +339,34 @@ export const ensureDefaultUsers = async (): Promise<void> => {
         if (!employee.managerId) {
           employee.managerId = marketingManager.id;
           await userRepository.save(employee);
-          console.log(`Set manager for ${employee.email}`);
+          managerAssignments++;
         }
       }
+    }
+    
+    if (managerAssignments > 0) {
+      console.log(`Manager relationships: ${managerAssignments} assignments completed`);
     }
 
     // If the new tables exist and columns exist, set up the relationships
     if (rolesExist && departmentsExist && positionsExist && 
         roleIdExists && departmentIdExists && positionIdExists) {
-      console.log("Setting up relationships for users with roles, departments, and positions");
+      console.log("Setting up user relationships with roles, departments, and positions");
+      
+      let relationshipsUpdated = 0;
+      let departmentsCreated = 0;
+      let positionsCreated = 0;
       
       // Link users to roles, departments, and positions
       for (const user of createdUsers) {
         try {
+          let updated = false;
+          
           // Find or create role
           let role = await roleRepository.findOne({ where: { name: user.role } });
-          if (role) {
+          if (role && !user.roleId) {
             user.roleId = role.id;
+            updated = true;
           }
 
           // Find or create department
@@ -348,11 +379,12 @@ export const ensureDefaultUsers = async (): Promise<void> => {
             department.description = `${user.department} Department`;
             department.isActive = true;
             department = await departmentRepository.save(department);
-            console.log(`Created department: ${department.name}`);
+            departmentsCreated++;
           }
 
-          if (department) {
+          if (department && !user.departmentId) {
             user.departmentId = department.id;
+            updated = true;
           }
 
           // Find or create position
@@ -379,21 +411,26 @@ export const ensureDefaultUsers = async (): Promise<void> => {
               position.departmentId = department.id;
             }
             position = await positionRepository.save(position);
-            console.log(`Created position: ${position.name}`);
+            positionsCreated++;
           }
 
-          if (position) {
+          if (position && !user.positionId) {
             user.positionId = position.id;
+            updated = true;
           }
 
           // Save the updated user
-          await userRepository.save(user);
-          console.log(`Updated relationships for user: ${user.email}`);
+          if (updated) {
+            await userRepository.save(user);
+            relationshipsUpdated++;
+          }
         } catch (error) {
           console.error(`Error setting up relationships for user ${user.email}:`, error);
           // Continue with next user
         }
       }
+      
+      console.log(`Relationships: ${relationshipsUpdated} users updated, ${departmentsCreated} departments and ${positionsCreated} positions created`);
     } else {
       console.log("Skipping relationship setup due to missing tables or columns");
     }

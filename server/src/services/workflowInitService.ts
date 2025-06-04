@@ -46,37 +46,12 @@ export const initializeWorkflows = async (): Promise<void> => {
       
       logger.info("Default workflows creation process completed.");
     } else {
-      // Workflows already exist, only create missing default workflows
-      // DO NOT update existing ones to preserve custom changes
-      logger.info(`Found ${existingWorkflows.length} existing workflows. Only adding missing defaults...`);
+      // Workflows already exist, don't create any new ones
+      logger.info(`Found ${existingWorkflows.length} existing workflows. No new workflows will be created.`);
       
-      // Get the names of existing workflows
-      const existingWorkflowNames = existingWorkflows.map(w => w.name);
-      
-      // Only create default workflows that don't exist yet
-      for (const defaultWorkflow of DEFAULT_APPROVAL_WORKFLOWS) {
-        try {
-          // Check if this default workflow already exists by name
-          if (!existingWorkflowNames.includes(defaultWorkflow.name)) {
-            // This default workflow doesn't exist, create it
-            logger.info(`Creating missing default workflow: ${defaultWorkflow.name}`);
-            
-            const workflow = new ApprovalWorkflow();
-            workflow.name = defaultWorkflow.name;
-            workflow.minDays = defaultWorkflow.minDays;
-            workflow.maxDays = defaultWorkflow.maxDays;
-            workflow.approvalLevels = defaultWorkflow.approvalLevels;
-            workflow.isActive = true;
-            
-            await workflowRepository.save(workflow);
-            logger.info(`Created missing default workflow: ${defaultWorkflow.name}`);
-          } else {
-            logger.info(`Preserving existing workflow: ${defaultWorkflow.name}`);
-          }
-        } catch (updateError) {
-          logger.error(`Error creating workflow ${defaultWorkflow.name}: ${updateError}`);
-          // Continue with the next workflow instead of failing completely
-        }
+      // Log existing workflows for information
+      for (const workflow of existingWorkflows) {
+        logger.info(`Preserving existing workflow: ${workflow.name}`);
       }
     }
     

@@ -8,6 +8,12 @@ export interface Department {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  manager?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email?: string;
+  };
 }
 
 export interface GetDepartmentsParams {

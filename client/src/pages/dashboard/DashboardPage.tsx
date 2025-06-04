@@ -112,8 +112,13 @@ const DashboardPage: React.FC = () => {
   
   // Check if user has manager dashboard type but doesn't have appropriate role
   // If so, treat them as an employee to prevent API permission errors
-  const hasManagerPermissions = ["manager", "team_lead", "super_admin", "hr"].includes(user.role);
-  const isManager = dashboardType === "manager" && hasManagerPermissions;
+  const hasManagerPermissions = ["manager", "super_admin", "hr"].includes(user.role);
+  const hasTeamLeadPermissions = user.role === "team_lead";
+  
+  // Determine if we should show the manager dashboard section
+  // For team leads, we'll show a team lead specific section instead
+  const isManager = (dashboardType === "manager" && hasManagerPermissions) || 
+                   (user.role === "manager" && hasManagerPermissions);
   
   // Render HR dashboard if needed
   if (dashboardType === "hr") {
@@ -126,7 +131,7 @@ const DashboardPage: React.FC = () => {
   // Function to refresh dashboard data
   const refreshDashboard = () => {
     queryClient.invalidateQueries({ queryKey: ["employeeDashboard"] });
-    if (isManager) {
+    if (isManager || hasTeamLeadPermissions) {
       queryClient.invalidateQueries({ queryKey: ["managerDashboard"] });
     }
   };
@@ -143,19 +148,19 @@ const DashboardPage: React.FC = () => {
   const { data: managerDashboard, isLoading: isManagerLoading } = useQuery<ApiManagerDashboard, Error, ManagerDashboard>({
     queryKey: ["managerDashboard"],
     queryFn: getManagerDashboard,
-    // Only enable this query if the user has manager permissions
-    enabled: isManager,
+    // Enable this query if the user has manager permissions or is a team lead
+    enabled: isManager || hasTeamLeadPermissions,
     onError: (err: Error) => {
       console.error("Manager dashboard error:", err);
       // Don't show error to user, just silently fail and show employee dashboard
       // This prevents confusion when a user has manager dashboard type but not the role
-      if (hasManagerPermissions) {
+      if (hasManagerPermissions || hasTeamLeadPermissions) {
         setError(err.message || "Failed to load manager dashboard data");
       }
     },
   } as UseQueryOptions<ApiManagerDashboard, Error, ManagerDashboard>);
 
-  const isLoading = isEmployeeLoading || (isManager && isManagerLoading);
+  const isLoading = isEmployeeLoading || ((isManager || hasTeamLeadPermissions) && isManagerLoading);
 
   // Helper function to render leave status badge
   const renderStatusBadge = (status: string) => {
@@ -348,6 +353,137 @@ const DashboardPage: React.FC = () => {
             </Card>
           </div>
 
+          {/* Team Lead Dashboard - Only show if user is a team lead and data loaded successfully */}
+          {hasTeamLeadPermissions && managerDashboard && (
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Team Lead Dashboard
+              </h2>
+
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <Card 
+                  title="Team Leave Requests"
+                  className="hover:shadow-lg transition-shadow duration-300"
+                >
+                  {managerDashboard?.pendingRequests &&
+                  managerDashboard.pendingRequests.length > 0 ? (
+                    <div className="space-y-4">
+                      {managerDashboard.pendingRequests.map((request) => (
+                        <div
+                          key={request.id}
+                          className="border-b border-gray-200 pb-3 last:border-0 last:pb-0 hover:bg-gray-50 p-2 rounded transition-colors"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-gray-800">
+                                {request.user?.firstName}{" "}
+                                {request.user?.lastName}
+                              </p>
+                              <p className="text-sm text-gray-500 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                {request.leaveType?.name}:{" "}
+                                {formatDate(request.startDate)} -{" "}
+                                {formatDate(request.endDate)}
+                              </p>
+                            </div>
+                            {renderStatusBadge(request.status)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-6 text-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-gray-500">
+                        No pending team leave requests.
+                      </p>
+                    </div>
+                  )}
+                  <div className="mt-4 text-right">
+                    <Link
+                      to="/team-leaves"
+                      className="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-500"
+                    >
+                      View all team requests
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </Link>
+                  </div>
+                </Card>
+
+                <Card 
+                  title="Team Availability"
+                  className="hover:shadow-lg transition-shadow duration-300 md:col-span-2 xl:col-span-1"
+                >
+                  {managerDashboard?.teamAvailability &&
+                  managerDashboard.teamAvailability.length > 0 ? (
+                    <div className="space-y-4">
+                      {managerDashboard.teamAvailability.map((day, index) => (
+                        <div
+                          key={index}
+                          className="border-b border-gray-200 pb-3 last:border-0 last:pb-0 hover:bg-gray-50 p-2 rounded transition-colors"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-gray-800 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                {formatDate(day.date)}
+                              </p>
+                              <p className="text-sm text-gray-500 ml-5">
+                                {day.isWeekend
+                                  ? "Weekend"
+                                  : day.isHoliday
+                                  ? "Holiday"
+                                  : "Working Day"}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-medium">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  {day.availableCount} / {day.totalUsers} available
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-6 text-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-gray-500">
+                        No team availability data available.
+                      </p>
+                    </div>
+                  )}
+                  <div className="mt-4 text-right">
+                    <Link
+                      to="/leave-calendar"
+                      className="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-500"
+                    >
+                      View leave calendar
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </Link>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
+
           {/* Manager Dashboard - Only show if user has manager permissions and data loaded successfully */}
           {isManager && hasManagerPermissions && managerDashboard && (
             <div className="mt-8">
@@ -355,7 +491,7 @@ const DashboardPage: React.FC = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                Team Management
+                Manager Dashboard
               </h2>
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">

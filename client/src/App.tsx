@@ -43,10 +43,9 @@ import CreateApprovalWorkflowPage from "./pages/admin/CreateApprovalWorkflowPage
 import EditApprovalWorkflowPage from "./pages/admin/EditApprovalWorkflowPage";
 import CreateWorkflowCategoryPage from "./pages/admin/CreateWorkflowCategoryPage";
 import EditWorkflowCategoryPage from "./pages/admin/EditWorkflowCategoryPage";
-import CreateApproverTypePage from "./pages/admin/CreateApproverTypePage";
-import EditApproverTypePage from "./pages/admin/EditApproverTypePage";
+
+
 import ApprovalManagementPage from "./pages/admin/ApprovalManagementPage";
-import WorkflowLevelsPage from "./pages/admin/WorkflowLevelsPage";
 import SuperAdminDashboardPage from "./pages/admin/SuperAdminDashboardPage";
 import RolesPage from "./pages/admin/RolesPage";
 import CreateRolePage from "./pages/admin/CreateRolePage";
@@ -57,6 +56,7 @@ import EditDepartmentPage from "./pages/admin/EditDepartmentPage";
 import PositionsPage from "./pages/admin/PositionsPage";
 import CreatePositionPage from "./pages/admin/CreatePositionPage";
 import EditPositionPage from "./pages/admin/EditPositionPage";
+
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -152,6 +152,8 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
+  
+
   // Redirects for super admin dashboard
   {
     path: "/dashboard",
@@ -274,22 +276,7 @@ const router = createBrowserRouter([
         path: "/workflow-categories/edit/:id",
         element: <EditWorkflowCategoryPage />,
       },
-      {
-        path: "/approver-types",
-        element: <Navigate to="/approval-management?tab=approverTypes" replace />,
-      },
-      {
-        path: "/approver-types/create",
-        element: <CreateApproverTypePage />,
-      },
-      {
-        path: "/approver-types/edit/:id",
-        element: <EditApproverTypePage />,
-      },
-      {
-        path: "/workflow-levels",
-        element: <Navigate to="/approval-management?tab=levels" replace />,
-      },
+
     ],
   },
 

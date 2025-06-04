@@ -26,9 +26,9 @@ export class CreateWorkflowLevelsTable1720000000000 implements MigrationInterfac
           },
           {
             name: "fallback_roles",
-            type: "jsonb",
+            type: "text",
             isNullable: false,
-            default: "[]",
+            default: "'[]'",
           },
           {
             name: "is_active",
@@ -62,22 +62,22 @@ export class CreateWorkflowLevelsTable1720000000000 implements MigrationInterfac
     // Insert default workflow levels with proper JSON format
     await queryRunner.query(`
       INSERT INTO workflow_levels (id, level, approver_type, fallback_roles, is_active)
-      VALUES (uuid_generate_v4(), 1, 'teamLead', '["team_lead"]'::jsonb, true)
+      VALUES (uuid_generate_v4(), 1, 'teamLead', '["team_lead"]', true)
     `);
     
     await queryRunner.query(`
       INSERT INTO workflow_levels (id, level, approver_type, fallback_roles, is_active)
-      VALUES (uuid_generate_v4(), 2, 'manager', '["manager"]'::jsonb, true)
+      VALUES (uuid_generate_v4(), 2, 'manager', '["manager"]', true)
     `);
     
     await queryRunner.query(`
       INSERT INTO workflow_levels (id, level, approver_type, fallback_roles, is_active)
-      VALUES (uuid_generate_v4(), 3, 'hr', '["hr"]'::jsonb, true)
+      VALUES (uuid_generate_v4(), 3, 'hr', '["hr"]', true)
     `);
     
     await queryRunner.query(`
       INSERT INTO workflow_levels (id, level, approver_type, fallback_roles, is_active)
-      VALUES (uuid_generate_v4(), 4, 'superAdmin', '["super_admin"]'::jsonb, true)
+      VALUES (uuid_generate_v4(), 4, 'superAdmin', '["super_admin"]', true)
     `);
   }
 

@@ -121,15 +121,31 @@ export const getLeaveTypeById = async (
 ) => {
   try {
     const { id } = request.params;
+    
+    // Log the request for debugging
+    logger.info(`Fetching leave type with ID: ${id}`);
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      logger.warn(`Invalid UUID format for leave type ID: ${id}`);
+      return h.response({ 
+        message: "Invalid leave type ID format. Please provide a valid UUID." 
+      }).code(400);
+    }
 
     // Get leave type
     const leaveTypeRepository = AppDataSource.getRepository(LeaveType);
     const leaveType = await leaveTypeRepository.findOne({ where: { id } });
 
     if (!leaveType) {
-      return h.response({ message: "Leave type not found" }).code(404);
+      logger.warn(`Leave type not found with ID: ${id}`);
+      return h.response({ 
+        message: "Leave type not found. It may have been deleted or you may not have permission to access it." 
+      }).code(404);
     }
 
+    logger.info(`Successfully retrieved leave type with ID: ${id}`);
     return h
       .response({
         leaveType,
@@ -138,7 +154,10 @@ export const getLeaveTypeById = async (
   } catch (error) {
     logger.error(`Error in getLeaveTypeById: ${error}`);
     return h
-      .response({ message: "An error occurred while fetching the leave type" })
+      .response({ 
+        message: "An error occurred while fetching the leave type",
+        error: process.env.NODE_ENV !== 'production' ? String(error) : undefined
+      })
       .code(500);
   }
 };

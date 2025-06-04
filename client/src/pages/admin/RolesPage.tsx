@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
 import config from "../../config";
-import { PlusIcon, PencilIcon, TrashIcon, CommandLineIcon, UserGroupIcon, UserIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, PencilIcon, TrashIcon, UserGroupIcon, UserIcon } from "@heroicons/react/24/outline";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
@@ -38,11 +38,6 @@ const RolesPage: React.FC = () => {
   const { user } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showCliInfo, setShowCliInfo] = useState<boolean>(false);
-  const [scriptOutput, setScriptOutput] = useState<string | null>(null);
-  const [isRunningScript, setIsRunningScript] = useState<boolean>(false);
-  const [quickRoleName, setQuickRoleName] = useState<string>("");
-  const [quickRoleDesc, setQuickRoleDesc] = useState<string>("");
   const [showUserModal, setShowUserModal] = useState<boolean>(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   
@@ -87,7 +82,7 @@ const RolesPage: React.FC = () => {
     if (user?.role === "super_admin") {
       if (window.confirm("Are you sure you want to delete this role? If users are assigned to this role, they will be reassigned to the default Employee role.")) {
         try {
-          const response = await axios.delete(`${config.apiUrl}/roles/${id}`, {
+          await axios.delete(`${config.apiUrl}/roles/${id}`, {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
@@ -105,7 +100,7 @@ const RolesPage: React.FC = () => {
       // For non-super_admin users, show the regular confirmation
       if (window.confirm("Are you sure you want to delete this role?")) {
         try {
-          const response = await axios.delete(`${config.apiUrl}/roles/${id}`, {
+          await axios.delete(`${config.apiUrl}/roles/${id}`, {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
@@ -135,7 +130,7 @@ const RolesPage: React.FC = () => {
   
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     try {
-      const response = await axios.patch(
+      await axios.patch(
         `${config.apiUrl}/roles/${id}/toggle-status`,
         { isActive: !currentStatus },
         {
@@ -161,47 +156,10 @@ const RolesPage: React.FC = () => {
     }
   };
 
-  // Function to toggle CLI info panel
-  const toggleCliInfo = () => {
-    setShowCliInfo(!showCliInfo);
-    // Clear script output when toggling panel
-    setScriptOutput(null);
-  };
-  
   // Function to view users assigned to a role
   const viewRoleUsers = (role: Role) => {
     setSelectedRole(role);
     setShowUserModal(true);
-  };
-  
-  // Function to run the script directly from the UI
-  const runScript = async (command: string) => {
-    try {
-      setIsRunningScript(true);
-      setError(null);
-      setScriptOutput(null);
-      
-      const response = await axios.post(
-        `${config.apiUrl}/scripts/run-role-script`,
-        { command },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      
-      setScriptOutput(response.data.output);
-      // Refresh the roles list
-      refetch();
-    } catch (err: any) {
-      console.error("Error running script:", err);
-      setError(
-        err.response?.data?.message || "An error occurred while running the script"
-      );
-    } finally {
-      setIsRunningScript(false);
-    }
   };
 
   return (
@@ -211,13 +169,6 @@ const RolesPage: React.FC = () => {
           Roles Management
         </h1>
         <div className="flex space-x-3">
-          <Button
-            variant="secondary"
-            onClick={toggleCliInfo}
-          >
-            <CommandLineIcon className="h-5 w-5 mr-2" />
-            CLI Tools
-          </Button>
           <Button
             variant="primary"
             onClick={() => navigate("/roles/create")}
@@ -243,99 +194,6 @@ const RolesPage: React.FC = () => {
         type="warning"
         message="Currently Roles cannot be created - still under development"
       />
-      
-      {showCliInfo && (
-        <Card>
-          <div className="p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Command Line Role Management</h2>
-            <p className="mb-4 text-gray-600">
-              You can also manage roles directly from the command line using our CLI tool.
-            </p>
-            
-            <div className="bg-gray-100 p-4 rounded-md mb-4">
-              <h3 className="text-md font-medium text-gray-800 mb-2">Show all roles</h3>
-              <div className="flex items-center mb-2">
-                <pre className="bg-gray-800 text-white p-3 rounded overflow-x-auto flex-grow">
-                  {`node direct-manage-roles.js show`}
-                </pre>
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  className="ml-3"
-                  onClick={() => runScript('show')}
-                  isLoading={isRunningScript}
-                >
-                  Run
-                </Button>
-              </div>
-            </div>
-            
-            <div className="bg-gray-100 p-4 rounded-md mb-4">
-              <h3 className="text-md font-medium text-gray-800 mb-2">Create a new role</h3>
-              <pre className="bg-gray-800 text-white p-3 rounded overflow-x-auto mb-4">
-                {`node direct-manage-roles.js create "Role Name" "Role Description" '{"resource":{"create":true,"read":true,"update":true,"delete":false}}'`}
-              </pre>
-              
-              <div className="mt-4 border-t pt-4">
-                <h4 className="text-sm font-medium text-gray-800 mb-2">Quick Create Role</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Role Name
-                    </label>
-                    <input
-                      type="text"
-                      value={quickRoleName}
-                      onChange={(e) => setQuickRoleName(e.target.value)}
-                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      placeholder="Enter role name"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <input
-                      type="text"
-                      value={quickRoleDesc}
-                      onChange={(e) => setQuickRoleDesc(e.target.value)}
-                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      placeholder="Enter description"
-                    />
-                  </div>
-                </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    if (quickRoleName.trim()) {
-                      runScript(`create "${quickRoleName}" "${quickRoleDesc}" '{"users":{"read":true}}'`);
-                      // Clear the form after submission
-                      setQuickRoleName("");
-                      setQuickRoleDesc("");
-                    } else {
-                      setError("Role name is required");
-                    }
-                  }}
-                  isLoading={isRunningScript}
-                  disabled={!quickRoleName.trim()}
-                >
-                  Create Role
-                </Button>
-              </div>
-            </div>
-            
-            {scriptOutput && (
-              <div className="bg-gray-100 p-4 rounded-md mt-4">
-                <h3 className="text-md font-medium text-gray-800 mb-2">Script Output</h3>
-                <pre className="bg-gray-800 text-white p-3 rounded overflow-x-auto max-h-96 overflow-y-auto">
-                  {scriptOutput}
-                </pre>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
 
       <Card>
         {isLoading ? (

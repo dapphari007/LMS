@@ -13,9 +13,15 @@ import Alert from "../../components/ui/Alert";
 
 interface ApprovalWorkflowsPageProps {
   isTabContent?: boolean;
+  roleId?: string;
+  roleName?: string;
 }
 
-export default function ApprovalWorkflowsPage({ isTabContent = false }: ApprovalWorkflowsPageProps) {
+export default function ApprovalWorkflowsPage({ 
+  isTabContent = false,
+  roleId,
+  roleName
+}: ApprovalWorkflowsPageProps) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<string | null>(null);
   const [workflowToToggle, setWorkflowToToggle] = useState<string | null>(null);
@@ -32,7 +38,7 @@ export default function ApprovalWorkflowsPage({ isTabContent = false }: Approval
     error,
   } = useQuery({
     queryKey: ["approvalWorkflows"],
-    queryFn: () => getAllApprovalWorkflows(),
+    queryFn: () => getAllApprovalWorkflows({}),
   });
 
   const deleteMutation = useMutation({
@@ -111,6 +117,9 @@ export default function ApprovalWorkflowsPage({ isTabContent = false }: Approval
     <div className={isTabContent ? "" : "container mx-auto px-4 py-8"}>
       <div className="flex justify-between items-center mb-6">
         {!isTabContent && <h1 className="text-2xl font-bold">Approval Workflows</h1>}
+        {isTabContent && roleId && roleName && (
+          <h2 className="text-xl font-semibold text-gray-800">{roleName} Approval Workflows</h2>
+        )}
         <div className={`flex space-x-2 ${isTabContent ? "ml-auto" : ""}`}>
           {isSuperAdmin && (
             <button
@@ -170,13 +179,15 @@ export default function ApprovalWorkflowsPage({ isTabContent = false }: Approval
 
       {workflows.length === 0 ? (
         <div className="bg-gray-50 p-6 rounded-lg text-center">
-          <p className="text-gray-600">No approval workflows found.</p>
-          <Link
-            to="/approval-workflows/create"
-            className="text-blue-600 hover:underline mt-2 inline-block"
-          >
-            Create your first workflow
-          </Link>
+          <div>
+            <p className="text-gray-600">No approval workflows found.</p>
+            <Link
+              to="/approval-workflows/create"
+              className="text-blue-600 hover:underline mt-2 inline-block"
+            >
+              Create your first workflow
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="overflow-x-auto">

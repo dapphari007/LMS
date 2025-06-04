@@ -144,8 +144,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       return location.pathname === "/approval-management" || 
              location.pathname === "/approval-workflows" ||
              location.pathname === "/workflow-categories" ||
-             location.pathname === "/approver-types" ||
-             location.pathname === "/workflow-levels";
+             location.pathname === "/approver-types";
     }
     
     return false;
@@ -186,7 +185,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               </div>
               <div className="mt-5 h-0 flex-1 overflow-y-auto">
                 <nav className="space-y-1 px-2">
-                  {navigation.map((item) => (
+                  {/* Filter out "My Leaves" and "Apply Leave" for superadmins */}
+                  {navigation
+                    .filter(item => 
+                      user?.role !== "super_admin" || 
+                      (item.name !== "My Leaves" && item.name !== "Apply Leave")
+                    )
+                    .map((item) => (
                     <Link
                       key={item.name}
                       to={item.href}
@@ -209,7 +214,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                     </Link>
                   ))}
 
-                  {(user?.role === "manager" || user?.dashboardType === "manager") &&
+                  {/* Only show Manager section if user is actually a manager (not a team lead with manager dashboard) */}
+                  {(user?.role === "manager" && user?.dashboardType !== "team_lead") &&
                     managerNavigation.map((item) => (
                       <Link
                         key={item.name}
@@ -233,7 +239,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                       </Link>
                     ))}
 
-                  {(user?.role === "team_lead" || user?.dashboardType === "team_lead") &&
+                  {/* Show Team Lead section if user is a team lead */}
+                  {user?.role === "team_lead" &&
                     teamLeadNavigation.map((item) => (
                       <Link
                         key={item.name}
@@ -345,7 +352,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto">
             <nav className="flex-1 space-y-1 px-2 py-4">
-              {navigation.map((item) => (
+              {/* Filter out "My Leaves" and "Apply Leave" for superadmins */}
+              {navigation
+                .filter(item => 
+                  user?.role !== "super_admin" || 
+                  (item.name !== "My Leaves" && item.name !== "Apply Leave")
+                )
+                .map((item) => (
                 <Link
                   key={item.name}
                   to={item.href}
@@ -367,7 +380,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 </Link>
               ))}
 
-              {(user?.role === "manager" || user?.dashboardType === "manager") && (
+              {/* Only show Manager section if user is actually a manager (not a team lead with manager dashboard) */}
+              {(user?.role === "manager" && user?.dashboardType !== "team_lead") && (
                 <>
                   <div className="mt-8 mb-2 px-3">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -398,7 +412,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 </>
               )}
 
-              {(user?.role === "team_lead" || user?.dashboardType === "team_lead") && (
+              {/* Show Team Lead section if user is a team lead */}
+              {user?.role === "team_lead" && (
                 <>
                   <div className="mt-8 mb-2 px-3">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">

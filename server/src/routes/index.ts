@@ -7,15 +7,12 @@ import leaveRequestRoutes from "./leaveRequestRoutes";
 import holidayRoutes from "./holidayRoutes";
 import approvalWorkflowRoutes from "./approvalWorkflowRoutes";
 import workflowCategoryRoutes from "./workflowCategoryRoutes";
-import workflowLevelRoutes from "./workflowLevelRoutes";
-import approverTypeRoutes from "./approverTypeRoutes";
+
 import dashboardRoutes from "./dashboardRoutes";
 import roleRoutes from "./roleRoutes";
 import departmentRoutes from "./departmentRoutes";
 import positionRoutes from "./positionRoutes";
 import pageRoutes from "./pageRoutes";
-import scriptRoutes from "./scriptRoutes";
-import { debugRoutes } from "./debugRoutes";
 
 export const registerRoutes = (server: Server): void => {
   const healthCheckRoute: ServerRoute = {
@@ -28,6 +25,22 @@ export const registerRoutes = (server: Server): void => {
       tags: ["api", "health"],
     },
   };
+  
+  // Add a root route handler
+  const rootRoute: ServerRoute = {
+    method: "GET",
+    path: "/",
+    handler: () => ({ 
+      status: "ok", 
+      message: "Leave Management API Server is running",
+      timestamp: new Date().toISOString() 
+    }),
+    options: {
+      auth: false,
+      description: "Root endpoint",
+      tags: ["api", "root"],
+    },
+  };
 
   server.route([
     ...authRoutes,
@@ -38,16 +51,17 @@ export const registerRoutes = (server: Server): void => {
     ...holidayRoutes,
     ...approvalWorkflowRoutes,
     ...workflowCategoryRoutes,
-    ...workflowLevelRoutes,
-    ...approverTypeRoutes,
+
     ...dashboardRoutes,
     ...roleRoutes,
     ...departmentRoutes,
     ...positionRoutes,
     ...pageRoutes,
-    ...scriptRoutes,
-    ...debugRoutes,
     // Health check route
     healthCheckRoute,
+    // Root route
+    rootRoute,
   ]);
+
+
 };

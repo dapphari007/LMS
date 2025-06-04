@@ -3,6 +3,7 @@ import config from "./config";
 import path from "path";
 import logger from "../utils/logger";
 
+// Use environment variables for database connection
 export const AppDataSource = new DataSource({
   type: "postgres",
   host: config.database.host,
@@ -66,9 +67,61 @@ export const initializeDatabase = async (): Promise<void> => {
       logger.info("* There are pending migrations that need to be applied");
       
       try {
+        // First, try to fix the migrations table if needed
+        logger.info("* Checking migrations table for issues...");
+        const queryRunner = AppDataSource.createQueryRunner();
+        
+        try {
+          // Check if migrations table exists
+          const tableExists = await queryRunner.hasTable("migrations");
+          
+          if (tableExists) {
+            // Check for null values in the name column
+            const nullNames = await queryRunner.query(
+              `SELECT id FROM migrations WHERE name IS NULL`
+            );
+
+            if (nullNames.length > 0) {
+              logger.info(`* Found ${nullNames.length} migrations with null names, removing them`);
+              await queryRunner.query(`DELETE FROM migrations WHERE name IS NULL`);
+            }
+
+            // Check for duplicate migrations
+            const duplicates = await queryRunner.query(`
+              SELECT name, COUNT(*) 
+              FROM migrations 
+              GROUP BY name 
+              HAVING COUNT(*) > 1
+            `);
+
+            if (duplicates.length > 0) {
+              logger.info(`* Found ${duplicates.length} duplicate migrations, keeping only the latest`);
+              
+              for (const dup of duplicates) {
+                const name = dup.name;
+                
+                await queryRunner.query(`
+                  DELETE FROM migrations 
+                  WHERE name = $1 
+                  AND id NOT IN (
+                    SELECT id FROM migrations 
+                    WHERE name = $1 
+                    ORDER BY timestamp DESC 
+                    LIMIT 1
+                  )
+                `, [name]);
+              }
+            }
+          }
+        } catch (fixError) {
+          logger.error("* Error fixing migrations table:", fixError);
+        } finally {
+          await queryRunner.release();
+        }
+        
         // Run migrations automatically
         logger.info("* Running pending migrations...");
-        await AppDataSource.runMigrations();
+        await AppDataSource.runMigrations({ transaction: "each" });
         logger.info("* Migrations completed successfully");
       } catch (migrationError) {
         logger.error("* Error running migrations:", migrationError);
@@ -82,8 +135,24 @@ export const initializeDatabase = async (): Promise<void> => {
           
           for (const migration of migrationFiles) {
             try {
+              if (!migration.name) {
+                logger.warn(`* Skipping migration with undefined name`);
+                continue;
+              }
+              
               const queryRunner = AppDataSource.createQueryRunner();
               await migration.up(queryRunner);
+              
+              // Record the migration in the migrations table
+              try {
+                await queryRunner.query(
+                  `INSERT INTO migrations(timestamp, name) VALUES($1, $2) ON CONFLICT DO NOTHING`,
+                  [Date.now(), migration.name]
+                );
+              } catch (recordError) {
+                logger.warn(`* Could not record migration ${migration.name} in migrations table:`, recordError);
+              }
+              
               await queryRunner.release();
               logger.info(`* Successfully ran migration: ${migration.name}`);
             } catch (singleMigrationError) {

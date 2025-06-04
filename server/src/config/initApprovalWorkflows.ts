@@ -15,47 +15,22 @@ export const initApprovalWorkflows = async (): Promise<void> => {
 
     const approvalWorkflowRepository = AppDataSource.getRepository(ApprovalWorkflow);
 
-    // Check if department-based workflow already exists
-    const existingWorkflow = await approvalWorkflowRepository.findOne({
-      where: { name: 'Department-Based Approval Workflow' }
-    });
-
-    if (!existingWorkflow) {
-      logger.info('Creating department-based approval workflow...');
-      
-      // Create a new department-specific approval workflow
-      const departmentWorkflow = new ApprovalWorkflow();
-      departmentWorkflow.name = 'Department-Based Approval Workflow';
-      departmentWorkflow.minDays = 1;
-      departmentWorkflow.maxDays = 30;
-      departmentWorkflow.isActive = true;
-      departmentWorkflow.approvalLevels = [
-        {
-          level: 1,
-          approverType: 'teamLead',
-          fallbackRoles: [UserRole.TEAM_LEAD],
-          departmentSpecific: true
-        },
-        {
-          level: 2,
-          approverType: 'departmentHead',
-          fallbackRoles: [UserRole.MANAGER],
-          departmentSpecific: true
-        },
-        {
-          level: 3,
-          approverType: 'hr',
-          fallbackRoles: [UserRole.HR],
-          departmentSpecific: true
-        }
-      ];
-
-      await approvalWorkflowRepository.save(departmentWorkflow);
-      logger.info('Department-based approval workflow created successfully');
-    } else {
-      logger.info('Department-based approval workflow already exists');
+    // Department-Based Approval Workflow creation has been removed
+    logger.info('Department-Based Approval Workflow creation has been skipped');
+    
+    // Check if any workflows exist
+    const existingWorkflowsCount = await approvalWorkflowRepository.count();
+    
+    if (existingWorkflowsCount === 0) {
+      // No workflows exist, so there's nothing to update
+      logger.info('No existing workflows found. Skipping workflow updates.');
+      return;
     }
-
+    
+    // If we have workflows, we'll only check for updates, not create new ones
+    logger.info(`Found ${existingWorkflowsCount} existing workflows. Only checking for updates.`);
+    
+    // We won't create any new workflows, only update existing ones if needed
     // Check if standard workflow exists
     const standardWorkflow = await approvalWorkflowRepository.findOne({
       where: { name: 'Standard Approval Workflow' }
@@ -65,9 +40,9 @@ export const initApprovalWorkflows = async (): Promise<void> => {
       // Check if standard workflow needs to be updated with department-specific approvers
       let needsUpdate = false;
       
-      // Check if the first level has approverType
+      // Check if the first level has roleIds
       if (standardWorkflow.approvalLevels.length > 0 && 
-          !standardWorkflow.approvalLevels[0].approverType) {
+          (!standardWorkflow.approvalLevels[0].roleIds || standardWorkflow.approvalLevels[0].roleIds.length === 0)) {
         needsUpdate = true;
       }
 
@@ -79,23 +54,23 @@ export const initApprovalWorkflows = async (): Promise<void> => {
           if (index === 0) {
             return {
               ...level,
-              approverType: 'teamLead',
-              fallbackRoles: [UserRole.TEAM_LEAD],
-              departmentSpecific: true
+              roleIds: [], // Will be populated with actual role IDs when roles are created
+              departmentSpecific: true,
+              required: true
             };
           } else if (index === 1) {
             return {
               ...level,
-              approverType: 'departmentHead',
-              fallbackRoles: [UserRole.MANAGER],
-              departmentSpecific: true
+              roleIds: [], // Will be populated with actual role IDs when roles are created
+              departmentSpecific: true,
+              required: true
             };
           } else if (index === 2) {
             return {
               ...level,
-              approverType: 'hr',
-              fallbackRoles: [UserRole.HR],
-              departmentSpecific: true
+              roleIds: [], // Will be populated with actual role IDs when roles are created
+              departmentSpecific: true,
+              required: true
             };
           }
           return level;
@@ -118,9 +93,9 @@ export const initApprovalWorkflows = async (): Promise<void> => {
       // Check if extended workflow needs to be updated with department-specific approvers
       let needsUpdate = false;
       
-      // Check if the first level has approverType
+      // Check if the first level has roleIds
       if (extendedWorkflow.approvalLevels.length > 0 && 
-          !extendedWorkflow.approvalLevels[0].approverType) {
+          (!extendedWorkflow.approvalLevels[0].roleIds || extendedWorkflow.approvalLevels[0].roleIds.length === 0)) {
         needsUpdate = true;
       }
 
@@ -132,23 +107,23 @@ export const initApprovalWorkflows = async (): Promise<void> => {
           if (index === 0) {
             return {
               ...level,
-              approverType: 'teamLead',
-              fallbackRoles: [UserRole.TEAM_LEAD],
-              departmentSpecific: true
+              roleIds: [], // Will be populated with actual role IDs when roles are created
+              departmentSpecific: true,
+              required: true
             };
           } else if (index === 1) {
             return {
               ...level,
-              approverType: 'departmentHead',
-              fallbackRoles: [UserRole.MANAGER],
-              departmentSpecific: true
+              roleIds: [], // Will be populated with actual role IDs when roles are created
+              departmentSpecific: true,
+              required: true
             };
           } else if (index === 2) {
             return {
               ...level,
-              approverType: 'hr',
-              fallbackRoles: [UserRole.HR],
-              departmentSpecific: true
+              roleIds: [], // Will be populated with actual role IDs when roles are created
+              departmentSpecific: true,
+              required: true
             };
           }
           return level;

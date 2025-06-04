@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
-import LeaveBalanceDebug from "../../components/LeaveBalanceDebug";
 import { getLeaveTypes } from "../../services/leaveTypeService";
 import { createLeaveRequest } from "../../services/leaveRequestService";
 import { getHolidays } from "../../services/holidayService";
@@ -14,7 +13,7 @@ import Textarea from "../../components/ui/Textarea";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
 import { getErrorMessage } from "../../utils/errorUtils";
-import { calculateBusinessDays } from "../../utils/dateUtils";
+import { calculateBusinessDays, checkForHolidaysInRange } from "../../utils/dateUtils";
 import { useMyLeaveBalances } from "../../hooks/useLeaveBalances";
 import ApprovalWorkflowPreview from "../../components/leaves/ApprovalWorkflowPreview";
 
@@ -123,12 +122,29 @@ const ApplyLeavePage: React.FC = () => {
 
   const duration = calculateDuration();
 
-  // Check if requested leave exceeds available balance
+  // Check if requested leave exceeds available balance or falls on holidays
   useEffect(() => {
     // Reset warning when inputs change
     setWarning(null);
     
-    // Only check if we have all the required data
+    // Check for holidays first
+    if (startDate && endDate && holidaysData?.holidays) {
+      const holidayDates = holidaysData.holidays.map((h) => h.date);
+      const holidayCheck = checkForHolidaysInRange(startDate, endDate, holidayDates);
+      
+      if (holidayCheck.hasHolidays) {
+        const conflictingHolidays = holidaysData.holidays.filter(h => 
+          holidayCheck.holidayDates.includes(h.date)
+        );
+        const holidayNames = conflictingHolidays.map(h => h.name).join(', ');
+        setWarning(
+          `Cannot apply for leave on holidays. The following holidays fall within your selected dates: ${holidayNames}. Please select different dates.`
+        );
+        return; // Don't check balance if there are holiday conflicts
+      }
+    }
+    
+    // Only check balance if we have all the required data and no holiday conflicts
     if (leaveTypeId && startDate && endDate && leaveBalancesData?.leaveBalances) {
       const selectedLeaveBalance = leaveBalancesData.leaveBalances.find(
         balance => balance.leaveTypeId === leaveTypeId
@@ -148,15 +164,30 @@ const ApplyLeavePage: React.FC = () => {
         }
       }
     }
-  }, [leaveTypeId, startDate, endDate, duration, leaveBalancesData]);
+  }, [leaveTypeId, startDate, endDate, duration, leaveBalancesData, holidaysData]);
 
   // Handle form submission
   const onSubmit = async (data: CreateLeaveRequestData) => {
-    // Check if leave request exceeds balance
+    // Check if leave request has any warnings (balance or holiday conflicts)
     if (warning) {
-      // Prevent submission when out of balance
-      setError("Cannot submit leave request: Insufficient leave balance. Please adjust your dates or leave type.");
+      // Prevent submission when there are warnings
+      setError("Cannot submit leave request: " + warning);
       return; // Stop the submission process
+    }
+    
+    // Double-check for holidays before submission
+    if (startDate && endDate && holidaysData?.holidays) {
+      const holidayDates = holidaysData.holidays.map((h) => h.date);
+      const holidayCheck = checkForHolidaysInRange(startDate, endDate, holidayDates);
+      
+      if (holidayCheck.hasHolidays) {
+        const conflictingHolidays = holidaysData.holidays.filter(h => 
+          holidayCheck.holidayDates.includes(h.date)
+        );
+        const holidayNames = conflictingHolidays.map(h => h.name).join(', ');
+        setError(`Cannot submit leave request: The following holidays fall within your selected dates: ${holidayNames}. Please select different dates.`);
+        return;
+      }
     }
     
     // Double-check balance before submission
@@ -204,9 +235,6 @@ const ApplyLeavePage: React.FC = () => {
       <h1 className="text-2xl font-semibold text-gray-900 mb-6">
         Apply for Leave
       </h1>
-      
-      {/* Debug component - remove in production */}
-      <LeaveBalanceDebug />
 
       {error && (
         <Alert

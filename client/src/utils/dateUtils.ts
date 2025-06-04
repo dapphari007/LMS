@@ -76,3 +76,36 @@ export const calculateLeaveDuration = (
 
   return differenceInCalendarDays(end, start) + 1;
 };
+
+export const checkForHolidaysInRange = (
+  startDate: string,
+  endDate: string,
+  holidays: string[] = []
+): { hasHolidays: boolean; holidayDates: string[] } => {
+  const start = parseISO(startDate);
+  const end = parseISO(endDate);
+  const holidayDates = holidays.map((h) => parseISO(h));
+  
+  const conflictingHolidays: string[] = [];
+  
+  const currentDate = new Date(start);
+  while (currentDate <= end) {
+    const isHoliday = holidayDates.some(
+      (holiday) =>
+        holiday.getDate() === currentDate.getDate() &&
+        holiday.getMonth() === currentDate.getMonth() &&
+        holiday.getFullYear() === currentDate.getFullYear()
+    );
+    
+    if (isHoliday) {
+      conflictingHolidays.push(format(currentDate, "yyyy-MM-dd"));
+    }
+    
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return {
+    hasHolidays: conflictingHolidays.length > 0,
+    holidayDates: conflictingHolidays,
+  };
+};

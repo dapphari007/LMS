@@ -82,3 +82,44 @@ export const formatDate = (date: Date | string): string => {
     return 'Invalid date';
   }
 };
+
+export const checkForHolidaysInRange = async (
+  startDate: Date,
+  endDate: Date
+): Promise<{ hasHolidays: boolean; holidays: Holiday[] }> => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  // Reset hours to ensure we're comparing full days
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  // Get all holidays between start and end dates
+  const holidayRepository = AppDataSource.getRepository(Holiday);
+  const holidays = await holidayRepository.find({
+    where: {
+      date: TypeORMBetween(start, end),
+      isActive: true,
+    },
+  });
+
+  return {
+    hasHolidays: holidays.length > 0,
+    holidays: holidays,
+  };
+};
+
+export const isDateAHoliday = async (date: Date): Promise<boolean> => {
+  const checkDate = new Date(date);
+  checkDate.setHours(0, 0, 0, 0);
+
+  const holidayRepository = AppDataSource.getRepository(Holiday);
+  const holiday = await holidayRepository.findOne({
+    where: {
+      date: checkDate,
+      isActive: true,
+    },
+  });
+
+  return !!holiday;
+};

@@ -27,10 +27,9 @@ export class ApprovalWorkflow {
   @Column({ type: "jsonb" })
   approvalLevels: {
     level: number;
-    roles?: UserRole[];
-    approverType?: string;
-    fallbackRoles?: UserRole[];
-    departmentSpecific?: boolean;
+    roleIds: string[];            // Role IDs from roles table
+    departmentSpecific?: boolean; // Whether approval is department-specific
+    required?: boolean;           // Whether this level is required
   }[];
 
   @Column({ default: true })

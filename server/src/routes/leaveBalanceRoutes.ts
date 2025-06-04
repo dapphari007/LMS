@@ -22,16 +22,7 @@ const leaveBalanceRoutes: ServerRoute[] = [
       tags: ["api", "leave-balances"],
     },
   },
-  {
-    method: "GET",
-    path: "/api/leave-balances/{id}",
-    handler: LeaveBalanceController.getLeaveBalanceById,
-    options: {
-      auth: { strategies: ["super_admin", "manager_hr"] },
-      description: "Get leave balance by ID",
-      tags: ["api", "leave-balances"],
-    },
-  },
+  // Specific routes with fixed paths must come before parameterized routes
   {
     method: "GET",
     path: "/api/leave-balances/my-balances",
@@ -43,22 +34,22 @@ const leaveBalanceRoutes: ServerRoute[] = [
     },
   },
   {
-    method: "PUT",
-    path: "/api/leave-balances/{id}",
-    handler: LeaveBalanceController.updateLeaveBalance,
+    method: "GET",
+    path: "/api/leave-balances/check-flushed",
+    handler: LeaveBalanceController.checkDatabaseFlushed,
     options: {
       auth: "super_admin",
-      description: "Update leave balance",
+      description: "Check if the database is flushed (no leave balances exist)",
       tags: ["api", "leave-balances"],
     },
   },
   {
-    method: "DELETE",
-    path: "/api/leave-balances/{id}",
-    handler: LeaveBalanceController.deleteLeaveBalance,
+    method: "GET",
+    path: "/api/leave-balances/check-type/{id}",
+    handler: LeaveBalanceController.checkLeaveTypeBalances,
     options: {
-      auth: "super_admin",
-      description: "Delete leave balance",
+      auth: "all_roles",
+      description: "Check if leave balances exist for a specific leave type",
       tags: ["api", "leave-balances"],
     },
   },
@@ -82,13 +73,34 @@ const leaveBalanceRoutes: ServerRoute[] = [
       tags: ["api", "leave-balances"],
     },
   },
+  // Generic parameterized routes come last
   {
     method: "GET",
-    path: "/api/leave-balances/check-flushed",
-    handler: LeaveBalanceController.checkDatabaseFlushed,
+    path: "/api/leave-balances/{id}",
+    handler: LeaveBalanceController.getLeaveBalanceById,
+    options: {
+      auth: { strategies: ["super_admin", "manager_hr"] },
+      description: "Get leave balance by ID",
+      tags: ["api", "leave-balances"],
+    },
+  },
+  {
+    method: "PUT",
+    path: "/api/leave-balances/{id}",
+    handler: LeaveBalanceController.updateLeaveBalance,
     options: {
       auth: "super_admin",
-      description: "Check if the database is flushed (no leave balances exist)",
+      description: "Update leave balance",
+      tags: ["api", "leave-balances"],
+    },
+  },
+  {
+    method: "DELETE",
+    path: "/api/leave-balances/{id}",
+    handler: LeaveBalanceController.deleteLeaveBalance,
+    options: {
+      auth: "super_admin",
+      description: "Delete leave balance",
       tags: ["api", "leave-balances"],
     },
   },

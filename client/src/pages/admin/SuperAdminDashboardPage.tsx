@@ -250,18 +250,16 @@ const SuperAdminDashboardPage: React.FC = () => {
               Workflow Categories
             </Button>
           </Link>
-          <Link to="/approver-types">
-            <Button fullWidth variant="outline">
-              Approver Types
-            </Button>
-          </Link>
           <Link to="/leave-balances">
             <Button fullWidth variant="outline">
               Leave Balances
             </Button>
           </Link>
+
         </div>
       </div>
+
+
 
       {/* Leave Requests Section */}
       <div className="bg-white p-6 rounded-lg shadow">
@@ -310,9 +308,17 @@ const PendingLeaveRequestsSection: React.FC = () => {
   // Fetch pending leave requests that need approval
   const { data, isLoading, error } = useQuery({
     queryKey: ["pendingApprovalRequests"],
-    queryFn: () => getTeamLeaveRequests({
-      status: "pending_approval", // This fetches both pending and partially_approved
-    }),
+    queryFn: async () => {
+      try {
+        return await getTeamLeaveRequests({
+          status: "pending_approval", // This fetches both pending and partially_approved
+        });
+      } catch (err) {
+        console.error("Error fetching pending leave requests:", err);
+        // Return empty data with the same structure as GetLeaveRequestsResponse
+        return { leaveRequests: [], count: 0 };
+      }
+    },
     enabled: !!userProfile && (userProfile.role === "super_admin" || userProfile.role === "admin"),
     retry: 1,
   });
@@ -429,11 +435,59 @@ const LeaveBalancesSection: React.FC = () => {
   const { userProfile } = useAuth();
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [departmentsMap, setDepartmentsMap] = useState<Record<string, string>>({});
+
+  // Fetch departments to map IDs to names
+  const { data: departments } = useQuery({
+    queryKey: ["departments"],
+    queryFn: async () => {
+      try {
+        const { getAllDepartments } = await import("../../services/departmentService");
+        return await getAllDepartments();
+      } catch (err) {
+        console.error("Error fetching departments:", err);
+        return [];
+      }
+    },
+    enabled: !!userProfile && (userProfile.role === "super_admin" || userProfile.role === "admin"),
+  });
+
+  // Create a map of department IDs to names
+  useEffect(() => {
+    if (departments && departments.length > 0) {
+      const deptMap: Record<string, string> = {};
+      departments.forEach(dept => {
+        deptMap[dept.id] = dept.name;
+      });
+      setDepartmentsMap(deptMap);
+    }
+  }, [departments]);
 
   // Fetch leave balances
   const { data: leaveBalancesData, isLoading, error } = useQuery({
     queryKey: ["allLeaveBalances", year],
-    queryFn: () => getAllLeaveBalances({ year }),
+    queryFn: async () => {
+      try {
+        const result = await getAllLeaveBalances({ year });
+        
+        // Log the data to help with debugging
+        console.log("Leave balances data:", result);
+        
+        // Ensure we're returning the data in the expected format
+        if (Array.isArray(result)) {
+          return result;
+        } else if (result && typeof result === 'object' && 'leaveBalances' in result && Array.isArray((result as any).leaveBalances)) {
+          return (result as any).leaveBalances;
+        } else {
+          console.error("Unexpected data format from getAllLeaveBalances:", result);
+          return [];
+        }
+      } catch (err) {
+        console.error("Error fetching leave balances:", err);
+        // Return empty data
+        return [];
+      }
+    },
     enabled: !!userProfile && (userProfile.role === "super_admin" || userProfile.role === "admin"),
     retry: 1
   });
@@ -445,16 +499,22 @@ const LeaveBalancesSection: React.FC = () => {
     }
   }, [error]);
 
+  // The query function now always returns an array
   const leaveBalances = leaveBalancesData || [];
 
   // Filter leave balances based on search term
   const filteredBalances = leaveBalances.filter((balance: any) => {
+    if (!balance.user || !balance.leaveType) return false;
+    
     const userName =
-      `${balance.user?.firstName} ${balance.user?.lastName}`.toLowerCase();
-    const leaveType = balance.leaveType?.name.toLowerCase();
+      `${balance.user?.firstName || ''} ${balance.user?.lastName || ''}`.toLowerCase();
+    const leaveType = (balance.leaveType?.name || '').toLowerCase();
+    const department = (balance.user?.department?.name || balance.user?.department || '').toLowerCase();
     const searchLower = searchTerm.toLowerCase();
 
-    return userName.includes(searchLower) || leaveType.includes(searchLower);
+    return userName.includes(searchLower) || 
+           leaveType.includes(searchLower) || 
+           department.includes(searchLower);
   });
 
   return (
@@ -531,18 +591,31 @@ const LeaveBalancesSection: React.FC = () => {
                       {balance.user?.firstName} {balance.user?.lastName}
                     </td>
                     <td className="py-3 px-4">
-                      {balance.user?.department || "N/A"}
+                      {(() => {
+                        const dept = balance.user?.department;
+                        // If department is an object with a name property
+                        if (dept && typeof dept === 'object' && 'name' in dept) {
+                          return dept.name;
+                        } 
+                        // If department is a string ID, try to get the name from our map
+                        else if (dept && typeof dept === 'string') {
+                          return departmentsMap[dept] || "Unknown Department";
+                        }
+                        return "N/A";
+                      })()}
                     </td>
                     <td className="py-3 px-4">{balance.leaveType?.name}</td>
                     <td className="py-3 px-4">
-                      {Number(balance.balance || 0) +
-                        Number(balance.carryForward || 0)}
+                      {Number(balance.totalDays || balance.balance || 0) +
+                        Number(balance.carryForwardDays || balance.carryForward || 0)}
                     </td>
-                    <td className="py-3 px-4">{Number(balance.used || 0)}</td>
+                    <td className="py-3 px-4">{Number(balance.usedDays || balance.used || 0)}</td>
                     <td className="py-3 px-4">
-                      {Number(balance.balance || 0) +
-                        Number(balance.carryForward || 0) -
-                        Number(balance.used || 0)}
+                      {balance.remainingDays !== undefined 
+                        ? Number(balance.remainingDays) 
+                        : (Number(balance.totalDays || balance.balance || 0) +
+                           Number(balance.carryForwardDays || balance.carryForward || 0) -
+                           Number(balance.usedDays || balance.used || 0))}
                     </td>
                   </tr>
                 ))

@@ -2,11 +2,13 @@ import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 import config from "../config";
 
 // Create axios instance
+console.log("Initializing API with baseURL:", config.apiUrl);
 const api = axios.create({
   baseURL: config.apiUrl,
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 10000, // 10 seconds timeout
 });
 
 // Add a request interceptor to add the auth token to every request
@@ -29,6 +31,21 @@ api.interceptors.response.use(
     return response;
   },
   (error: AxiosError) => {
+    // Log detailed error information
+    console.error("API Error:", {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        baseURL: error.config?.baseURL,
+        headers: error.config?.headers,
+      }
+    });
+
     // Handle 401 Unauthorized errors (token expired or invalid)
     if (error.response?.status === 401) {
       // Clear local storage and redirect to login
@@ -36,6 +53,12 @@ api.interceptors.response.use(
       localStorage.removeItem("user");
       window.location.href = "/login";
     }
+    
+    // Handle network errors specifically
+    if (error.code === 'ECONNABORTED' || error.message.includes('Network Error')) {
+      console.error('Network error detected. Please check your connection and API URL configuration.');
+    }
+    
     return Promise.reject(error);
   }
 );

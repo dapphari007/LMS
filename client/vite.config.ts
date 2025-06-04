@@ -11,4 +11,7 @@ export default defineConfig({
       plugins: [tailwindcss, autoprefixer],
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1600, // Increased from default (500kb) to 1600kb
+  },
 });

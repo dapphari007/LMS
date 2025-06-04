@@ -758,3 +758,69 @@ export const checkDatabaseFlushed = async (
       .code(500);
   }
 };
+
+export const checkLeaveTypeBalances = async (
+  request: Request,
+  h: ResponseToolkit
+) => {
+  try {
+    const { id } = request.params; // leaveTypeId
+    const { year } = request.query as any;
+    
+    logger.info(`Checking leave balances for leave type ID: ${id}, year: ${year}`);
+    
+    // Validate the leave type ID
+    if (!id) {
+      logger.warn("Invalid leave type ID provided");
+      return h.response({
+        exists: false,
+        count: 0,
+        message: "Invalid leave type ID provided"
+      }).code(400);
+    }
+    
+    // Default to current year if not provided
+    const targetYear = year ? parseInt(year) : getCurrentYear();
+    logger.info(`Using target year: ${targetYear}`);
+    
+    // First check if the leave type exists
+    const leaveTypeRepository = AppDataSource.getRepository(LeaveType);
+    const leaveType = await leaveTypeRepository.findOne({ where: { id } });
+    
+    if (!leaveType) {
+      logger.warn(`Leave type with ID ${id} not found`);
+      return h.response({
+        exists: false,
+        count: 0,
+        message: "Leave type not found"
+      }).code(404);
+    }
+    
+    logger.info(`Found leave type: ${leaveType.name}`);
+    
+    // Check if leave balances exist for this leave type and year
+    const leaveBalanceRepository = AppDataSource.getRepository(LeaveBalance);
+    const count = await leaveBalanceRepository.count({
+      where: {
+        leaveTypeId: id,
+        year: targetYear
+      }
+    });
+    
+    logger.info(`Found ${count} leave balances for leave type ${id} and year ${targetYear}`);
+    
+    return h.response({
+      exists: count > 0,
+      count: count,
+      leaveTypeName: leaveType.name
+    }).code(200);
+  } catch (error) {
+    logger.error(`Error in checkLeaveTypeBalances: ${error}`);
+    return h
+      .response({ 
+        message: "An error occurred while checking leave type balances",
+        error: process.env.NODE_ENV !== 'production' ? String(error) : undefined
+      })
+      .code(500);
+  }
+};

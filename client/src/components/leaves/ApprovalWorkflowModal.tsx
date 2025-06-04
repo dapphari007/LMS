@@ -1,8 +1,11 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Modal from '../ui/Modal';
 import { LeaveRequest } from '../../types';
 import { formatDate } from '../../utils/dateUtils';
 import { renderStatusBadge } from '../../utils/leaveStatusUtils';
+import { getApprovalWorkflowForDuration } from '../../services/approvalWorkflowService';
+import { getAllWorkflowCategories, WorkflowCategory } from '../../services/workflowCategoryService';
 
 interface ApprovalWorkflowModalProps {
   isOpen: boolean;
@@ -21,6 +24,25 @@ const ApprovalWorkflowModal: React.FC<ApprovalWorkflowModalProps> = ({
   const approvalHistory = metadata.approvalHistory || [];
   const currentLevel = metadata.currentApprovalLevel || 0;
   const requiredLevels = metadata.requiredApprovalLevels || [];
+  
+  // Fetch the workflow based on the leave request duration
+  const { data: workflowData, isLoading: isLoadingWorkflow } = useQuery({
+    queryKey: ['approvalWorkflow', leaveRequest.numberOfDays],
+    queryFn: () => getApprovalWorkflowForDuration(leaveRequest.numberOfDays),
+    enabled: isOpen && !!leaveRequest.numberOfDays,
+  });
+  
+  // Fetch all workflow categories
+  const { data: categoriesData } = useQuery({
+    queryKey: ['workflowCategories'],
+    queryFn: () => getAllWorkflowCategories(),
+    enabled: isOpen,
+  });
+  
+  // Find the category for this workflow
+  const workflowCategory = categoriesData?.find(
+    (category: WorkflowCategory) => category.id === workflowData?.categoryId
+  );
   
   return (
     <Modal
@@ -49,6 +71,31 @@ const ApprovalWorkflowModal: React.FC<ApprovalWorkflowModalProps> = ({
         <div className="border-t border-gray-200 pt-4">
           <h4 className="font-medium mb-3">Approval Workflow</h4>
           
+          {/* Workflow Category Information */}
+          {isLoadingWorkflow ? (
+            <div className="text-center py-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary-600 mx-auto"></div>
+              <p className="text-sm text-gray-500 mt-2">Loading workflow information...</p>
+            </div>
+          ) : workflowData ? (
+            <div className="bg-gray-50 p-3 rounded-md mb-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h5 className="font-medium text-gray-800">{workflowData.name}</h5>
+                  <p className="text-sm text-gray-600">
+                    {workflowCategory ? `Category: ${workflowCategory.name}` : ''}
+                    {workflowCategory && workflowData.minDays && workflowData.maxDays ? ' | ' : ''}
+                    {workflowData.minDays !== undefined && workflowData.maxDays !== undefined ? 
+                      `Duration: ${workflowData.minDays}-${workflowData.maxDays} days` : ''}
+                  </p>
+                </div>
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                  {requiredLevels.length} approval {requiredLevels.length === 1 ? 'level' : 'levels'}
+                </span>
+              </div>
+            </div>
+          ) : null}
+          
           {approvalHistory.length > 0 ? (
             <div className="space-y-3">
               {/* Completed approval levels */}
@@ -74,24 +121,36 @@ const ApprovalWorkflowModal: React.FC<ApprovalWorkflowModalProps> = ({
               ))}
               
               {/* Pending approval levels */}
-              {leaveRequest.status === "partially_approved" && (
+              {(leaveRequest.status === "pending" || leaveRequest.status === "partially_approved") && (
                 <>
                   {requiredLevels
                     .filter((level: number) => level > currentLevel)
-                    .map((level: number) => (
-                      <div key={`pending-${level}`} className="flex items-start">
-                        <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 mr-3">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                          </svg>
+                    .map((level: number) => {
+                      // Find the corresponding level in the workflow data
+                      const levelInfo = workflowData?.approvalLevels?.find(
+                        (l: any) => l.level === level
+                      );
+                      
+                      return (
+                        <div key={`pending-${level}`} className="flex items-start">
+                          <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 mr-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-600">
+                              Level {level} - Pending Approval
+                              {levelInfo && (
+                                <span className="text-xs text-gray-500 ml-2">
+                                  ({levelInfo.approverType || levelInfo.roles?.join(', ')})
+                                </span>
+                              )}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-600">
-                            Level {level} - Pending Approval
-                          </p>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   }
                 </>
               )}

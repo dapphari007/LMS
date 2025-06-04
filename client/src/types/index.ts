@@ -4,9 +4,10 @@ export enum UserRole {
   MANAGER = "manager",
   HR = "hr",
   EMPLOYEE = "employee",
+  TEAM_LEAD = "team_lead",
 }
 
-export type DashboardType = "employee" | "manager" | "hr" | "admin" | "super_admin";
+export type DashboardType = "employee" | "manager" | "hr" | "admin" | "super_admin" | "team_lead";
 
 export interface User {
   id: string;
@@ -158,6 +159,7 @@ export interface LeaveRequest {
     email?: string;
     department?: string;
     position?: string;
+    role?: string;
   };
 }
 

@@ -12,6 +12,58 @@ export const runMigrations = async (closeConnection = true): Promise<void> => {
       logger.info("Database connected successfully");
     }
 
+    // First, try to fix the migrations table if needed
+    logger.info("Checking migrations table for issues...");
+    const queryRunner = AppDataSource.createQueryRunner();
+    
+    try {
+      // Check if migrations table exists
+      const tableExists = await queryRunner.hasTable("migrations");
+      
+      if (tableExists) {
+        // Check for null values in the name column
+        const nullNames = await queryRunner.query(
+          `SELECT id FROM migrations WHERE name IS NULL`
+        );
+
+        if (nullNames.length > 0) {
+          logger.info(`Found ${nullNames.length} migrations with null names, removing them`);
+          await queryRunner.query(`DELETE FROM migrations WHERE name IS NULL`);
+        }
+
+        // Check for duplicate migrations
+        const duplicates = await queryRunner.query(`
+          SELECT name, COUNT(*) 
+          FROM migrations 
+          GROUP BY name 
+          HAVING COUNT(*) > 1
+        `);
+
+        if (duplicates.length > 0) {
+          logger.info(`Found ${duplicates.length} duplicate migrations, keeping only the latest`);
+          
+          for (const dup of duplicates) {
+            const name = dup.name;
+            
+            await queryRunner.query(`
+              DELETE FROM migrations 
+              WHERE name = $1 
+              AND id NOT IN (
+                SELECT id FROM migrations 
+                WHERE name = $1 
+                ORDER BY timestamp DESC 
+                LIMIT 1
+              )
+            `, [name]);
+          }
+        }
+      }
+    } catch (fixError) {
+      logger.error("Error fixing migrations table:", fixError);
+    } finally {
+      await queryRunner.release();
+    }
+
     // Check for pending migrations
     const pendingMigrations = await AppDataSource.showMigrations();
     
@@ -30,8 +82,30 @@ export const runMigrations = async (closeConnection = true): Promise<void> => {
         
         // Sort migrations by timestamp to ensure correct order
         const sortedMigrations = migrations.sort((a, b) => {
-          const aTimestamp = parseInt(a.name.split('-')[0]);
-          const bTimestamp = parseInt(b.name.split('-')[0]);
+          // Check if migration names are properly formatted
+          if (!a.name || !b.name) {
+            logger.error(`Invalid migration name found: ${a.name || 'undefined'} or ${b.name || 'undefined'}`);
+            return 0;
+          }
+          
+          // Safely extract timestamps
+          const aParts = a.name.split('-');
+          const bParts = b.name.split('-');
+          
+          if (!aParts || !aParts.length || !bParts || !bParts.length) {
+            logger.error(`Migration name doesn't contain timestamp: ${a.name} or ${b.name}`);
+            return 0;
+          }
+          
+          const aTimestamp = parseInt(aParts[0]);
+          const bTimestamp = parseInt(bParts[0]);
+          
+          // Check if timestamps are valid numbers
+          if (isNaN(aTimestamp) || isNaN(bTimestamp)) {
+            logger.error(`Invalid timestamp in migration: ${a.name} or ${b.name}`);
+            return 0;
+          }
+          
           return aTimestamp - bTimestamp;
         });
         
@@ -41,7 +115,22 @@ export const runMigrations = async (closeConnection = true): Promise<void> => {
           try {
             // Check if migration has already been applied
             const migrationName = migration.name;
-            const migrationTimestamp = migrationName.split('-')[0];
+            
+            // Safely extract timestamp
+            let migrationTimestamp = '';
+            if (migrationName && migrationName.includes('-')) {
+              const parts = migrationName.split('-');
+              if (parts && parts.length > 0) {
+                migrationTimestamp = parts[0];
+              }
+            }
+            
+            // If we couldn't extract a valid timestamp, generate one
+            if (!migrationTimestamp || isNaN(parseInt(migrationTimestamp))) {
+              logger.warn(`Could not extract timestamp from migration name: ${migrationName}`);
+              migrationTimestamp = Date.now().toString();
+              logger.info(`Using current timestamp instead: ${migrationTimestamp}`);
+            }
             
             const migrationExists = await AppDataSource.query(
               `SELECT * FROM migrations WHERE name = $1`,

@@ -106,6 +106,10 @@ export class LeaveRequest {
     deletionRejectedBy?: string;
     deletionRejectedAt?: Date;
     deletionRejectionComments?: string;
+    // User role for approval workflow
+    requestUserRole?: string;
+    // Workflow reference
+    workflowId?: string;
   };
 
   @CreateDateColumn()

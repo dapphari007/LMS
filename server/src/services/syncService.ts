@@ -11,16 +11,23 @@ export class SyncService {
   /**
    * Synchronize all essential data
    */
-  public static async syncAll(): Promise<void> {
+  public static async syncAll(skipWorkflows = false): Promise<void> {
     try {
       logger.info("Starting data synchronization...");
       
       // Ensure database connection
       await ensureDatabaseConnection();
       
-      // Sync in sequence to avoid any potential conflicts
+      // Sync roles
       await this.syncRoles();
-      await this.syncApprovalWorkflows();
+      
+      // Sync approval workflows (only if not skipped)
+      if (!skipWorkflows) {
+        logger.info("Synchronizing approval workflows as part of data sync...");
+        await this.syncApprovalWorkflows();
+      } else {
+        logger.info("Skipping approval workflows synchronization as requested");
+      }
       
       logger.info("Data synchronization completed successfully");
     } catch (error) {
@@ -183,30 +190,39 @@ export class SyncService {
       
       const workflowRepository = AppDataSource.getRepository(ApprovalWorkflow);
       
-      // Only create missing default workflows, don't update existing ones
+      // Check if any workflows exist
+      const existingWorkflowsCount = await workflowRepository.count();
+      
+      if (existingWorkflowsCount > 0) {
+        // If any workflows exist, don't create new ones
+        logger.info(`Found ${existingWorkflowsCount} existing approval workflows. No synchronization needed.`);
+        
+        // Log existing workflows for information
+        const existingWorkflows = await workflowRepository.find();
+        for (const workflow of existingWorkflows) {
+          logger.info(`Preserving existing approval workflow: ${workflow.name}`);
+        }
+        
+        return;
+      }
+      
+      // Only create default workflows if none exist
+      logger.info("No existing approval workflows found. Creating default workflows...");
+      
+      // Create all default workflows
       for (const workflowData of DEFAULT_APPROVAL_WORKFLOWS) {
         try {
-          let workflow = await workflowRepository.findOne({
-            where: { name: workflowData.name },
-          });
+          const workflow = new ApprovalWorkflow();
+          workflow.name = workflowData.name;
+          workflow.minDays = workflowData.minDays;
+          workflow.maxDays = workflowData.maxDays;
+          workflow.approvalLevels = workflowData.approvalLevels;
+          workflow.isActive = true;
           
-          if (!workflow) {
-            // Create new workflow only if it doesn't exist
-            workflow = new ApprovalWorkflow();
-            workflow.name = workflowData.name;
-            workflow.minDays = workflowData.minDays;
-            workflow.maxDays = workflowData.maxDays;
-            workflow.approvalLevels = workflowData.approvalLevels;
-            workflow.isActive = true;
-            
-            await workflowRepository.save(workflow);
-            logger.info(`Created missing approval workflow: ${workflowData.name}`);
-          } else {
-            // Don't update existing workflows to preserve custom changes
-            logger.info(`Preserving existing approval workflow: ${workflowData.name}`);
-          }
+          await workflowRepository.save(workflow);
+          logger.info(`Created approval workflow: ${workflowData.name}`);
         } catch (error) {
-          logger.error(`Error synchronizing workflow ${workflowData.name}: ${error}`);
+          logger.error(`Error creating workflow ${workflowData.name}: ${error}`);
         }
       }
       

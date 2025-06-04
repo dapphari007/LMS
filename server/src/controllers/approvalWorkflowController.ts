@@ -1,8 +1,8 @@
 import { Request, ResponseToolkit } from "@hapi/hapi";
 import { AppDataSource, ensureDatabaseConnection } from "../config/database";
-import { ApprovalWorkflow, UserRole, WorkflowLevel, WorkflowCategory } from "../models";
+import { ApprovalWorkflow, UserRole, WorkflowCategory } from "../models";
 import logger from "../utils/logger";
-import { getActiveWorkflowLevels } from "../services/workflowLevelService";
+
 import { LessThanOrEqual, MoreThanOrEqual, Not } from "typeorm";
 import { getApprovalWorkflowForDuration as getWorkflowForDuration } from "../services/approvalWorkflowService";
 
@@ -51,8 +51,9 @@ export const DEFAULT_APPROVAL_WORKFLOWS = [
     approvalLevels: [
       {
         level: 1, // L-1 (Team Lead)
-        approverType: "teamLead",
-        fallbackRoles: [UserRole.TEAM_LEAD],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: true,
+        required: true,
       },
     ],
   },
@@ -63,13 +64,15 @@ export const DEFAULT_APPROVAL_WORKFLOWS = [
     approvalLevels: [
       {
         level: 1, // L-1 (Team Lead)
-        approverType: "teamLead",
-        fallbackRoles: [UserRole.TEAM_LEAD],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: true,
+        required: true,
       },
       {
         level: 2, // L-2 (Manager)
-        approverType: "manager",
-        fallbackRoles: [UserRole.MANAGER],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: true,
+        required: true,
       },
     ],
   },
@@ -80,18 +83,21 @@ export const DEFAULT_APPROVAL_WORKFLOWS = [
     approvalLevels: [
       {
         level: 1, // L-1 (Team Lead)
-        approverType: "teamLead",
-        fallbackRoles: [UserRole.TEAM_LEAD],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: true,
+        required: true,
       },
       {
         level: 2, // L-2 (Manager)
-        approverType: "manager",
-        fallbackRoles: [UserRole.MANAGER],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: true,
+        required: true,
       },
       {
         level: 3, // L-3 (HR)
-        approverType: "hr",
-        fallbackRoles: [UserRole.HR],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: true,
+        required: true,
       },
     ],
   },
@@ -102,23 +108,27 @@ export const DEFAULT_APPROVAL_WORKFLOWS = [
     approvalLevels: [
       {
         level: 1, // L-1 (Team Lead)
-        approverType: "teamLead",
-        fallbackRoles: [UserRole.TEAM_LEAD],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: true,
+        required: true,
       },
       {
         level: 2, // L-2 (Manager)
-        approverType: "manager",
-        fallbackRoles: [UserRole.MANAGER],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: true,
+        required: true,
       },
       {
         level: 3, // L-3 (HR)
-        approverType: "hr",
-        fallbackRoles: [UserRole.HR],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: true,
+        required: true,
       },
       {
         level: 4, // L-4 (Super Admin)
-        approverType: "superAdmin",
-        fallbackRoles: [UserRole.SUPER_ADMIN],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: false,
+        required: true,
       },
     ],
   },
@@ -129,23 +139,27 @@ export const DEFAULT_APPROVAL_WORKFLOWS = [
     approvalLevels: [
       {
         level: 1, // L-1 (Team Lead)
-        approverType: "teamLead",
-        fallbackRoles: [UserRole.TEAM_LEAD],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: true,
+        required: true,
       },
       {
         level: 2, // L-2 (Manager)
-        approverType: "manager",
-        fallbackRoles: [UserRole.MANAGER],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: true,
+        required: true,
       },
       {
         level: 3, // L-3 (HR)
-        approverType: "hr",
-        fallbackRoles: [UserRole.HR],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: true,
+        required: true,
       },
       {
         level: 4, // L-4 (Super Admin)
-        approverType: "superAdmin",
-        fallbackRoles: [UserRole.SUPER_ADMIN],
+        roleIds: [], // Will be populated with actual role IDs when roles are created
+        departmentSpecific: false,
+        required: true,
       },
     ],
   },
@@ -263,13 +277,9 @@ export const createApprovalWorkflow = async (
           
           return {
             level: level.level,
-            roles: Array.isArray(level.roles) 
-              ? level.roles.map(role => normalizeRole(role))
-              : [normalizeRole(level.roles)],
-            approverType: level.approverType,
-            fallbackRoles: Array.isArray(level.fallbackRoles)
-              ? level.fallbackRoles.map(role => normalizeRole(role))
-              : level.fallbackRoles ? [normalizeRole(level.fallbackRoles)] : undefined,
+            roleIds: Array.isArray(level.roleIds) 
+              ? level.roleIds
+              : [level.roleIds],
             departmentSpecific: level.departmentSpecific,
             required: level.required
           };
@@ -511,13 +521,9 @@ export const updateApprovalWorkflow = async (
             
             return {
               level: level.level,
-              roles: Array.isArray(level.roles) 
-                ? level.roles.map(role => normalizeRole(role))
-                : [normalizeRole(level.roles)],
-              approverType: level.approverType,
-              fallbackRoles: Array.isArray(level.fallbackRoles)
-                ? level.fallbackRoles.map(role => normalizeRole(role))
-                : level.fallbackRoles ? [normalizeRole(level.fallbackRoles)] : undefined,
+              roleIds: Array.isArray(level.roleIds) 
+                ? level.roleIds
+                : level.roleIds ? [level.roleIds] : [],
               departmentSpecific: level.departmentSpecific,
               required: level.required
             };

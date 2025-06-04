@@ -1,5 +1,6 @@
 import { AppDataSource } from "../config/database";
 import { User, UserRole } from "../models";
+import { Role } from "../models/Role";
 import logger from "../utils/logger";
 import { ensureDatabaseConnection } from "../config/database";
 
@@ -195,9 +196,57 @@ export const findApproversByRoles = async (
 };
 
 /**
+ * Find potential approvers based on role IDs
+ * @param roleIds Array of role IDs to search for
+ * @param departmentId Optional department ID to filter approvers by department
+ * @returns Array of users with the specified role IDs
+ */
+export const findApproversByRoleIds = async (
+  roleIds: string[],
+  departmentId?: string
+): Promise<User[]> => {
+  try {
+    // Ensure database connection is established
+    await ensureDatabaseConnection();
+
+    const userRepository = AppDataSource.getRepository(User);
+    
+    let approvers: User[] = [];
+    
+    if (departmentId) {
+      // First try to find approvers from the same department
+      approvers = await userRepository.find({
+        where: roleIds.map(roleId => ({ 
+          roleId, 
+          isActive: true,
+          department: departmentId
+        })),
+      });
+      
+      // If no department-specific approvers found, fall back to any approver with the role
+      if (approvers.length === 0) {
+        approvers = await userRepository.find({
+          where: roleIds.map(roleId => ({ roleId, isActive: true })),
+        });
+      }
+    } else {
+      // If no department specified, find any approver with the role
+      approvers = await userRepository.find({
+        where: roleIds.map(roleId => ({ roleId, isActive: true })),
+      });
+    }
+
+    return approvers;
+  } catch (error) {
+    logger.error(`Error in findApproversByRoleIds: ${error}`);
+    return [];
+  }
+};
+
+/**
  * Get all potential approvers for a specific level in the approval workflow
  * @param userId The ID of the user requesting leave
- * @param approvalLevel The approval level configuration
+ * @param approvalLevel The approval level configuration with roleIds
  * @returns Array of potential approvers
  */
 export const getPotentialApprovers = async (
@@ -216,16 +265,25 @@ export const getPotentialApprovers = async (
       return [];
     }
 
-    // First try to find the specific assigned approver
-    const assignedApprover = await findApproverByType(userId, approvalLevel.approverType);
-    
-    if (assignedApprover) {
-      return [assignedApprover];
+    // Use the new role-based system
+    if (approvalLevel.roleIds && approvalLevel.roleIds.length > 0) {
+      // Find approvers by role IDs
+      return await findApproversByRoleIds(
+        approvalLevel.roleIds,
+        approvalLevel.departmentSpecific ? user.department : undefined
+      );
     }
     
-    // If no assigned approver is found, fall back to role-based approvers
+    // Legacy fallback for old approverType system
+    if (approvalLevel.approverType) {
+      const assignedApprover = await findApproverByType(userId, approvalLevel.approverType);
+      if (assignedApprover) {
+        return [assignedApprover];
+      }
+    }
+    
+    // Legacy fallback for old fallbackRoles system
     if (approvalLevel.fallbackRoles && approvalLevel.fallbackRoles.length > 0) {
-      // Pass the user's department to find department-specific approvers first
       return await findApproversByRoles(approvalLevel.fallbackRoles, user.department);
     }
     

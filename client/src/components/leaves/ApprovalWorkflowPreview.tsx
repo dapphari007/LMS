@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ApprovalWorkflow } from '../../services/approvalWorkflowService';
-import { getUserById } from '../../services/userService';
 import { getApprovalWorkflowForDuration } from '../../services/approvalWorkflowService';
 import { getUserApprovers } from '../../services/userService';
 import Card from '../ui/Card';
@@ -229,7 +228,7 @@ const ApprovalWorkflowPreview: React.FC<ApprovalWorkflowPreviewProps> = ({
         </p>
         
         <div className="space-y-3">
-          {MOCK_WORKFLOW.approvalLevels.map((level, index) => (
+          {MOCK_WORKFLOW.approvalLevels.map((level) => (
             <div key={`level-${level.level}`} className="flex items-start">
               <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 mr-3">
                 <span className="text-xs font-medium">{level.level}</span>
@@ -240,7 +239,7 @@ const ApprovalWorkflowPreview: React.FC<ApprovalWorkflowPreviewProps> = ({
                 </p>
                 
                 <div className="mt-1">
-                  {MOCK_APPROVERS.filter(a => a.level === level.level).map((approver, i) => (
+                  {MOCK_APPROVERS.filter(a => a.level === level.level).map((approver) => (
                     <div key={`approver-${approver.id}`} className="text-sm text-gray-700 flex items-center">
                       <span className={approver.isFallback ? 'text-orange-600' : ''}>
                         {approver.firstName} {approver.lastName}
@@ -310,7 +309,7 @@ const ApprovalWorkflowPreview: React.FC<ApprovalWorkflowPreviewProps> = ({
             ))
           ) : (
             // For regular employees, show the standard workflow
-            workflowToUse.approvalLevels.map((level, index) => {
+            workflowToUse.approvalLevels.map((level: any) => {
               // Find approvers for this level
               const levelApprovers = approvers.filter(a => a.level === level.level);
               
@@ -321,12 +320,12 @@ const ApprovalWorkflowPreview: React.FC<ApprovalWorkflowPreviewProps> = ({
                   </div>
                   <div className="flex-1">
                     <p className="font-medium text-sm">
-                      Level {level.level}: {level.approverType ? level.approverType.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()) : 'Approver'}
+                      Level {level.level}: {level.approverType ? level.approverType.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase()) : 'Approver'}
                     </p>
                     
                     {levelApprovers.length > 0 ? (
                       <div className="mt-1">
-                        {levelApprovers.map((approver, i) => (
+                        {levelApprovers.map((approver) => (
                           <div key={`approver-${approver.id}`} className="text-sm text-gray-700 flex items-center">
                             <span className={approver.isFallback ? 'text-orange-600' : ''}>
                               {approver.firstName} {approver.lastName}

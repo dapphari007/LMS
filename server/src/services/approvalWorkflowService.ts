@@ -1,10 +1,11 @@
 import { AppDataSource } from "../config/database";
-import { ApprovalWorkflow } from "../models";
+import { ApprovalWorkflow, Role, User, UserRole } from "../models";
 import logger from "../utils/logger";
 import {
   LessThanOrEqual as TypeORMLessThanOrEqual,
   MoreThanOrEqual as TypeORMMoreThanOrEqual,
   Not as TypeORMNot,
+  In as TypeORMIn,
 } from "typeorm";
 
 /**
@@ -233,6 +234,87 @@ export const getApprovalWorkflowForDuration = async (
     return approvalWorkflow;
   } catch (error) {
     logger.error(`Error in getApprovalWorkflowForDuration service: ${error}`);
+    throw error;
+  }
+};
+
+/**
+ * Get potential approvers for a workflow level using roles
+ */
+export const getApproversForWorkflowLevel = async (
+  level: {
+    level: number;
+    roleIds: string[];
+    departmentSpecific?: boolean;
+    required?: boolean;
+  },
+  requesterId?: string,
+  departmentId?: string
+): Promise<User[]> => {
+  try {
+    const userRepository = AppDataSource.getRepository(User);
+    
+    let potentialApprovers: User[] = [];
+
+    // Get users by role IDs
+    if (level.roleIds && level.roleIds.length > 0) {
+      const roleUsers = await userRepository.find({
+        where: {
+          roleId: TypeORMIn(level.roleIds),
+          isActive: true,
+        },
+        relations: ["roleObj", "departmentObj"],
+      });
+      potentialApprovers.push(...roleUsers);
+    }
+
+    // Apply department filtering if specified
+    if (level.departmentSpecific && departmentId) {
+      potentialApprovers = potentialApprovers.filter(
+        user => user.departmentId === departmentId
+      );
+    }
+
+    // Remove the requester from potential approvers
+    if (requesterId) {
+      potentialApprovers = potentialApprovers.filter(
+        user => user.id !== requesterId
+      );
+    }
+
+    // Remove duplicates based on user ID
+    const uniqueApprovers = potentialApprovers.filter(
+      (user, index, self) => self.findIndex(u => u.id === user.id) === index
+    );
+
+    return uniqueApprovers;
+  } catch (error) {
+    logger.error(`Error in getApproversForWorkflowLevel: ${error}`);
+    throw error;
+  }
+};
+
+/**
+ * Get all potential approvers for a workflow
+ */
+export const getApproversForWorkflow = async (
+  workflowId: string,
+  requesterId?: string,
+  departmentId?: string
+): Promise<{ level: number; approvers: User[] }[]> => {
+  try {
+    const workflow = await getApprovalWorkflowById(workflowId);
+    
+    const approversByLevel = await Promise.all(
+      workflow.approvalLevels.map(async (level) => ({
+        level: level.level,
+        approvers: await getApproversForWorkflowLevel(level, requesterId, departmentId),
+      }))
+    );
+
+    return approversByLevel;
+  } catch (error) {
+    logger.error(`Error in getApproversForWorkflow: ${error}`);
     throw error;
   }
 };

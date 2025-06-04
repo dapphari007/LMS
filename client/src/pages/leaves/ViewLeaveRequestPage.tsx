@@ -20,6 +20,7 @@ export default function ViewLeaveRequestPage() {
   const [leaveRequest, setLeaveRequest] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [overlappingRequests, setOverlappingRequests] = useState<any[]>([]);
   const [approvalComment, setApprovalComment] = useState("");
 
   const isTeamLead = user?.role === "team_lead";
@@ -38,19 +39,44 @@ export default function ViewLeaveRequestPage() {
   
   // Check if current user is eligible to approve at the next level in the workflow
   const canApproveRequest = useMemo(() => {
-    if (!leaveRequest || !leaveRequest.user) return false;
+    if (!leaveRequest || !leaveRequest.user) {
+      console.log('No leave request or user data available');
+      return false;
+    }
+    
+    // First check if this is the user's own request - users shouldn't approve their own requests
+    if (user?.id === leaveRequest.userId) {
+      console.log('User cannot approve their own request');
+      return false;
+    }
     
     const hasCustomAdminRole = user?.roleObj?.permissions?.includes('admin') || false;
-    const requestUserRole = leaveRequest.user.role;
     
-    return canApproveRequestUtil(
+    console.log('Checking approval eligibility:', {
+      userRole: user?.role,
+      requestUserRole: leaveRequest.user?.role,
+      requestStatus: leaveRequest.status,
+      metadata: leaveRequest.metadata,
+      isOwnRequest: user?.id === leaveRequest.userId,
+      isTeamLead,
+      isManager,
+      isHR,
+      isAdmin: user?.role === 'admin',
+      isSuperAdmin: user?.role === 'super_admin',
+      hasCustomAdminRole
+    });
+    
+    // Use the utility function to determine if the user can approve based on the strict hierarchy
+    const canApprove = canApproveRequestUtil(
       user?.role || '', 
       hasCustomAdminRole,
       leaveRequest.status,
-      leaveRequest.metadata,
-      requestUserRole
+      leaveRequest.metadata
     );
-  }, [user, leaveRequest]);
+    
+    console.log(`canApproveRequestUtil returned: ${canApprove}`);
+    return canApprove;
+  }, [user, leaveRequest, isTeamLead, isManager, isHR]);
 
   useEffect(() => {
     const fetchLeaveRequest = async () => {
@@ -80,7 +106,18 @@ export default function ViewLeaveRequestPage() {
       });
     },
     (err: any) => {
-      setError(err.response?.data?.message || "Failed to update leave request status");
+      // Check if this is an overlapping leave request error (status code 409)
+      if (err.response?.status === 409) {
+        setError(err.response?.data?.message || "Failed to update leave request status");
+        
+        // If there are overlapping requests in the response, store them
+        if (err.response?.data?.overlappingRequests) {
+          setOverlappingRequests(err.response.data.overlappingRequests);
+        }
+      } else {
+        // Handle other errors
+        setError(err.response?.data?.message || "Failed to update leave request status");
+      }
     }
   );
 
@@ -126,7 +163,16 @@ export default function ViewLeaveRequestPage() {
     }
   );
 
+  // Reset error states
+  const resetErrors = () => {
+    setError(null);
+    setOverlappingRequests([]);
+  };
+
   const handleApprove = () => {
+    // Clear any previous errors
+    resetErrors();
+    
     updateStatusMutation.mutate({
       status: "approved",
       comment: approvalComment,
@@ -134,6 +180,9 @@ export default function ViewLeaveRequestPage() {
   };
 
   const handleReject = () => {
+    // Clear any previous errors
+    resetErrors();
+    
     updateStatusMutation.mutate({
       status: "rejected",
       comment: approvalComment,
@@ -177,8 +226,36 @@ export default function ViewLeaveRequestPage() {
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           {error}
         </div>
+        
+        {/* Display overlapping leave requests if any */}
+        {overlappingRequests.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-lg font-medium mb-2">Overlapping Leave Requests:</h3>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <ul className="list-disc pl-5 space-y-2">
+                {overlappingRequests.map((request, index) => (
+                  <li key={index}>
+                    <span className="font-medium">Leave ID: {request.id}</span>
+                    <div className="text-sm">
+                      Period: {request.startDate} to {request.endDate}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-4 text-sm text-gray-700">
+                The employee already has approved leave requests for these dates. 
+                Please review the existing leave schedule before approving this request.
+              </p>
+            </div>
+          </div>
+        )}
+        
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            setError(null);
+            setOverlappingRequests([]);
+            navigate(-1);
+          }}
           className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
         >
           Go Back
@@ -360,6 +437,88 @@ export default function ViewLeaveRequestPage() {
             </div>
           )}
 
+          {/* Debug information - Always visible */}
+          <div className="border-t border-gray-200 pt-6 mt-6">
+            <h3 className="text-lg font-medium mb-4">Approval Workflow Status</h3>
+            <div className="bg-gray-100 p-4 rounded-md mb-4">
+              <div className="mb-4">
+                <h4 className="font-medium text-gray-700 mb-2">Current Status</h4>
+                <p className="text-sm">
+                  This leave request is currently <strong>{leaveRequest?.status.replace('_', ' ').toUpperCase()}</strong>
+                </p>
+                {leaveRequest?.metadata && leaveRequest.metadata.currentApprovalLevel > 0 && (
+                  <p className="text-sm mt-1">
+                    Approval progress: Level {leaveRequest.metadata.currentApprovalLevel} completed
+                    {leaveRequest.metadata.requiredApprovalLevels && 
+                     leaveRequest.metadata.requiredApprovalLevels.length > 0 && 
+                     ` of ${Math.max(...leaveRequest.metadata.requiredApprovalLevels)}`}
+                  </p>
+                )}
+              </div>
+              
+              <div className="mb-4">
+                <h4 className="font-medium text-gray-700 mb-2">Your Role</h4>
+                <p className="text-sm">
+                  You are logged in as: <strong>{user?.role?.replace('_', ' ').toUpperCase()}</strong> (Approval Level: {getApprovalLevel()})
+                </p>
+                <p className="text-sm mt-1">
+                  {canApproveRequest 
+                    ? "You can approve/reject this request based on the current workflow stage."
+                    : "You cannot approve/reject this request at the current workflow stage."}
+                </p>
+              </div>
+              
+              {leaveRequest?.metadata && leaveRequest.metadata.requiredApprovalLevels && (
+                <div className="mb-4">
+                  <h4 className="font-medium text-gray-700 mb-2">Approval Workflow</h4>
+                  <div className="flex flex-col space-y-2">
+                    {[...Array(Math.max(...leaveRequest.metadata.requiredApprovalLevels))].map((_, index) => {
+                      const level = index + 1;
+                      const isCompleted = leaveRequest.metadata.currentApprovalLevel >= level;
+                      const isCurrent = leaveRequest.metadata.currentApprovalLevel + 1 === level;
+                      const roleName = level === 1 ? "Team Lead" : level === 2 ? "Manager" : level === 3 ? "HR" : level === 4 ? "Admin" : "Super Admin";
+                      
+                      return (
+                        <div key={level} className="flex items-center">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
+                            isCompleted ? "bg-green-500 text-white" : isCurrent ? "bg-blue-500 text-white" : "bg-gray-300"
+                          }`}>
+                            {isCompleted ? "✓" : level}
+                          </div>
+                          <span className={`text-sm ${isCompleted ? "text-green-600 font-medium" : isCurrent ? "text-blue-600 font-medium" : "text-gray-600"}`}>
+                            Level {level} - {roleName} {isCompleted ? "(Approved)" : isCurrent ? "(Current)" : "(Pending)"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              
+              <div className="text-xs text-gray-500 mt-4 pt-4 border-t border-gray-200">
+                <p><strong>Technical Details:</strong></p>
+                <p>User Role: {user?.role}</p>
+                <p>User Approval Level: L{getApprovalLevel()}</p>
+                <p>Request Status: {leaveRequest?.status}</p>
+                <p>Request User Role: {leaveRequest?.user?.role}</p>
+                <p>Is Team Lead: {isTeamLead ? 'Yes' : 'No'}</p>
+                <p>Is Manager: {isManager ? 'Yes' : 'No'}</p>
+                <p>Is HR: {isHR ? 'Yes' : 'No'}</p>
+                <p>Is Super Admin: {isSuperAdmin ? 'Yes' : 'No'}</p>
+                <p>Is Partially Approved: {isPartiallyApproved ? 'Yes' : 'No'}</p>
+                <p>Can Approve Request: {canApproveRequest ? 'Yes' : 'No'}</p>
+                <p>Is Own Request: {isOwnRequest ? 'Yes' : 'No'}</p>
+                {leaveRequest?.metadata && (
+                  <>
+                    <p>Current Approval Step: {leaveRequest.metadata.currentApprovalLevel}</p>
+                    <p>Next Required Step: {leaveRequest.metadata.currentApprovalLevel + 1}</p>
+                    <p>Required Approval Steps: {JSON.stringify(leaveRequest.metadata.requiredApprovalLevels)}</p>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Approval Actions */}
           {!isOwnRequest && canApproveRequest && (
             <div className="border-t border-gray-200 pt-6 mt-6">
@@ -380,27 +539,6 @@ export default function ViewLeaveRequestPage() {
                   </p>
                 </div>
               )}
-              
-              {/* Debug information - remove in production */}
-              <div className="bg-gray-100 p-4 rounded-md mb-4 text-xs">
-                <p><strong>Debug Info:</strong></p>
-                <p>User Role: {user?.role}</p>
-                <p>User Approval Level: L{getApprovalLevel()}</p>
-                <p>Request Status: {leaveRequest?.status}</p>
-                <p>Is Team Lead: {isTeamLead ? 'Yes' : 'No'}</p>
-                <p>Is Manager: {isManager ? 'Yes' : 'No'}</p>
-                <p>Is HR: {isHR ? 'Yes' : 'No'}</p>
-                <p>Is Super Admin: {isSuperAdmin ? 'Yes' : 'No'}</p>
-                <p>Is Partially Approved: {isPartiallyApproved ? 'Yes' : 'No'}</p>
-                <p>Can Approve Request: {canApproveRequest ? 'Yes' : 'No'}</p>
-                {leaveRequest?.metadata && (
-                  <>
-                    <p>Current Approval Step: {leaveRequest.metadata.currentApprovalLevel}</p>
-                    <p>Next Required Step: {leaveRequest.metadata.currentApprovalLevel + 1}</p>
-                    <p>Required Approval Steps: {JSON.stringify(leaveRequest.metadata.requiredApprovalLevels)}</p>
-                  </>
-                )}
-              </div>
 
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">

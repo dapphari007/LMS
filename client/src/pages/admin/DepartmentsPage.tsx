@@ -1,25 +1,11 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import config from "../../config";
 import { useNavigate } from "react-router-dom";
 import { PlusIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Alert from "../../components/ui/Alert";
-
-interface Department {
-  id: string;
-  name: string;
-  description: string;
-  managerId?: string;
-  isActive: boolean;
-  manager?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-}
+import { getAllDepartments, deleteDepartment, Department } from "../../services/departmentService";
 
 const DepartmentsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -34,19 +20,15 @@ const DepartmentsPage: React.FC = () => {
   } = useQuery({
     queryKey: ["departments"],
     queryFn: async () => {
-      const response = await axios.get(`${config.apiUrl}/departments`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      
-      // Check if the response has the expected structure
-      if (response.data && response.data.departments) {
-        return response.data.departments;
+      try {
+        console.log("Fetching departments...");
+        const response = await getAllDepartments();
+        console.log("Departments response:", response);
+        return response;
+      } catch (error) {
+        console.error("Error fetching departments:", error);
+        throw error;
       }
-      
-      // Fallback if the structure is different
-      return Array.isArray(response.data) ? response.data : [];
     }
   });
   
@@ -61,14 +43,12 @@ const DepartmentsPage: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this department?")) {
       try {
-        await axios.delete(`${config.apiUrl}/departments/${id}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
+        console.log(`Deleting department with ID: ${id}`);
+        await deleteDepartment(id);
         setSuccess("Department deleted successfully");
         refetch();
       } catch (err: any) {
+        console.error("Error deleting department:", err);
         setError(
           err.response?.data?.message || "Failed to delete department"
         );

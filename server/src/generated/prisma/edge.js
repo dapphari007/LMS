@@ -322,7 +322,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "C:\\Users\\HarishKalyanaperumal\\Desktop\\finaldest\\server\\src\\generated\\prisma",
+      "value": "C:\\Users\\HarishKalyanaperumal\\Desktop\\fdrs-working\\server\\src\\generated\\prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -336,7 +336,7 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "C:\\Users\\HarishKalyanaperumal\\Desktop\\finaldest\\server\\prisma\\schema.prisma",
+    "sourceFilePath": "C:\\Users\\HarishKalyanaperumal\\Desktop\\fdrs-working\\server\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {

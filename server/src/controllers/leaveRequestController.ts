@@ -15,11 +15,14 @@ import {
   calculateHalfDayValue,
   getCurrentYear,
   formatDate,
+  checkForHolidaysInRange,
+  isDateAHoliday,
 } from "../utils/dateUtils";
 import emailService from "../utils/emailService";
 import logger from "../utils/logger";
 import * as approverService from "../services/approverService";
-import { LessThanOrEqual, MoreThanOrEqual, In } from "typeorm";
+import * as leaveRequestService from "../services/leaveRequestService";
+import { LessThanOrEqual, MoreThanOrEqual, In, Not } from "typeorm";
 
 export const createLeaveRequest = async (
   request: Request,
@@ -60,6 +63,18 @@ export const createLeaveRequest = async (
       return h
         .response({
           message: "Cannot apply for leave with a start date in the past",
+        })
+        .code(400);
+    }
+
+    // Check if the leave dates fall on holidays
+    const holidayCheck = await checkForHolidaysInRange(start, end);
+    if (holidayCheck.hasHolidays) {
+      const holidayNames = holidayCheck.holidays.map(h => h.name).join(', ');
+      return h
+        .response({
+          message: `Cannot apply for leave on holidays. The following holidays fall within your selected dates: ${holidayNames}`,
+          holidays: holidayCheck.holidays,
         })
         .code(400);
     }
@@ -131,7 +146,7 @@ export const createLeaveRequest = async (
       numberOfDays = calculateHalfDayValue(true);
     }
 
-    // Check if there are overlapping leave requests
+    // Check if there are overlapping leave requests (including same day)
     const leaveRequestRepository = AppDataSource.getRepository(LeaveRequest);
     const overlappingLeaveRequests = await leaveRequestRepository.find({
       where: [
@@ -151,11 +166,41 @@ export const createLeaveRequest = async (
     });
 
     if (overlappingLeaveRequests.length > 0) {
-      return h
-        .response({
-          message: "You already have a leave request for this period",
-        })
-        .code(409);
+      // Check for exact same day conflicts
+      const conflictingRequest = overlappingLeaveRequests.find(request => {
+        const requestStart = new Date(request.startDate);
+        const requestEnd = new Date(request.endDate);
+        requestStart.setHours(0, 0, 0, 0);
+        requestEnd.setHours(0, 0, 0, 0);
+        
+        // Check if any day in the new request overlaps with existing request
+        const currentDate = new Date(start);
+        while (currentDate <= end) {
+          if (currentDate >= requestStart && currentDate <= requestEnd) {
+            return true;
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        return false;
+      });
+
+      if (conflictingRequest) {
+        const conflictStart = formatDate(conflictingRequest.startDate);
+        const conflictEnd = formatDate(conflictingRequest.endDate);
+        const conflictPeriod = conflictStart === conflictEnd ? conflictStart : `${conflictStart} to ${conflictEnd}`;
+        
+        return h
+          .response({
+            message: `You already have a ${conflictingRequest.status.toLowerCase()} leave request for ${conflictPeriod}. Multiple leave requests on the same day(s) are not allowed.`,
+            conflictingRequest: {
+              id: conflictingRequest.id,
+              startDate: conflictStart,
+              endDate: conflictEnd,
+              status: conflictingRequest.status,
+            },
+          })
+          .code(409);
+      }
     }
 
     // Check leave balance
@@ -214,108 +259,161 @@ export const createLeaveRequest = async (
     leaveRequest.numberOfDays = numberOfDays;
     leaveRequest.reason = reason;
     leaveRequest.status = LeaveRequestStatus.PENDING;
+    
+    // Add metadata with user role for approval workflow and set up approval levels
+    const metadata: any = {
+      requestUserRole: user.role,
+      isFullyApproved: false,
+      approvalHistory: []
+    };
+    
+    // Get the appropriate approval workflow based on the number of days
+    try {
+      // Get the workflow based on the number of days
+      const approvalWorkflow = await leaveRequestService.getApprovalWorkflow(numberOfDays);
+      
+      // Set the current approval level to 0 (starting point)
+      metadata.currentApprovalLevel = 0;
+      
+      // Parse the approval levels from the workflow
+      let approvalLevels = approvalWorkflow.approvalLevels;
+      if (typeof approvalLevels === "string") {
+        try {
+          approvalLevels = JSON.parse(approvalLevels);
+          if (typeof approvalLevels === "string") {
+            approvalLevels = JSON.parse(approvalLevels);
+          }
+        } catch (error) {
+          logger.error(`Error parsing approvalLevels: ${error}`);
+        }
+      }
+      
+      // Sort the levels to ensure proper order
+      const sortedLevels = Array.isArray(approvalLevels) 
+        ? [...approvalLevels].sort((a, b) => a.level - b.level)
+        : [];
+      
+      // Determine required approval levels from the workflow
+      let requiredLevels = sortedLevels.map(level => level.level);
+      
+      // Apply dynamic role-based skipping logic - skip levels where the requester's role matches the approver role
+      requiredLevels = requiredLevels.filter(level => {
+        const levelDef = sortedLevels.find(l => l.level === level);
+        // Skip this level if the user's role is included in the approver roles for this level
+        return !(levelDef && levelDef.roleIds && levelDef.roleIds.includes(user.role));
+      });
+      
+      // Store the required approval levels in metadata
+      metadata.requiredApprovalLevels = requiredLevels;
+      
+      // Store the workflow ID for reference
+      metadata.workflowId = approvalWorkflow.id;
+      
+    } catch (error) {
+      // If no workflow is found or there's an error, return an error response
+      logger.error(`Error getting approval workflow: ${error}`);
+      return h
+        .response({
+          message: "No approval workflow found for this leave duration. Please contact your administrator.",
+          success: false
+        })
+        .code(400);
+    }
+    
+    leaveRequest.metadata = metadata;
 
     // Save leave request to database
     const savedLeaveRequest = await leaveRequestRepository.save(leaveRequest);
 
-    // Find approvers to notify based on leave duration and user's assigned approvers
-    // If user is super_admin, redirect to HR
-    if (user.role === UserRole.SUPER_ADMIN) {
-      // Find HR users to notify
-      const hrUsers = await userRepository.find({
-        where: { role: UserRole.HR, isActive: true },
-      });
-
-      if (hrUsers.length > 0) {
-        // Notify all HR users
-        for (const hrUser of hrUsers) {
-          await emailService.sendLeaveRequestNotification(
-            hrUser.email,
-            `${user.firstName} ${user.lastName} (Super Admin)`,
-            leaveType.name,
-            formatDate(start),
-            formatDate(end),
-            reason
-          );
-        }
-      }
-    } else {
-      // For leave requests of 2 days or less, notify team lead first if assigned
-      if (numberOfDays <= 2 && user.teamLeadId) {
-        const teamLead = await userRepository.findOne({
-          where: { id: user.teamLeadId, isActive: true },
-        });
+    // Find approvers to notify based on the dynamic workflow
+    try {
+      // Get the first level approvers from the metadata
+      if (leaveRequest.metadata && leaveRequest.metadata.requiredApprovalLevels && 
+          leaveRequest.metadata.requiredApprovalLevels.length > 0) {
         
-        if (teamLead) {
-          // Send email notification to team lead
-          await emailService.sendLeaveRequestNotification(
-            teamLead.email,
-            `${user.firstName} ${user.lastName}`,
-            leaveType.name,
-            formatDate(start),
-            formatDate(end),
-            reason
-          );
-        }
-      } 
-      // For leave requests greater than 2 days, notify both team lead and manager
-      else if (numberOfDays > 2) {
-        // Notify team lead if assigned
-        if (user.teamLeadId) {
-          const teamLead = await userRepository.findOne({
-            where: { id: user.teamLeadId, isActive: true },
+        // Get the first level that needs approval
+        const firstApprovalLevel = leaveRequest.metadata.requiredApprovalLevels[0];
+        
+        // Find approvers for this level
+        let approversToNotify: User[] = [];
+        
+        // If we have a workflow ID, get the workflow to find the approver type
+        if (leaveRequest.metadata.workflowId) {
+          const approvalWorkflowRepository = AppDataSource.getRepository(ApprovalWorkflow);
+          const workflow = await approvalWorkflowRepository.findOne({
+            where: { id: leaveRequest.metadata.workflowId }
           });
           
-          if (teamLead) {
-            // Send email notification to team lead
-            await emailService.sendLeaveRequestNotification(
-              teamLead.email,
-              `${user.firstName} ${user.lastName}`,
-              leaveType.name,
-              formatDate(start),
-              formatDate(end),
-              reason + "\n\nNote: This leave request requires multi-level approval."
-            );
+          if (workflow) {
+            // Parse approval levels if needed
+            let approvalLevels = workflow.approvalLevels;
+            if (typeof approvalLevels === "string") {
+              try {
+                approvalLevels = JSON.parse(approvalLevels);
+                if (typeof approvalLevels === "string") {
+                  approvalLevels = JSON.parse(approvalLevels);
+                }
+              } catch (error) {
+                logger.error(`Error parsing approvalLevels: ${error}`);
+              }
+            }
+            
+            // Find the level definition for the first required level
+            const levelDefinition = Array.isArray(approvalLevels) 
+              ? approvalLevels.find(l => l.level === firstApprovalLevel)
+              : null;
+              
+            if (levelDefinition) {
+              // Find approvers by role IDs
+              if (levelDefinition.roleIds && levelDefinition.roleIds.length > 0) {
+                const roleApprovers = await approverService.findApproversByRoleIds(
+                  levelDefinition.roleIds,
+                  user.department
+                );
+                approversToNotify = [...roleApprovers];
+              }
+            }
           }
         }
         
-        // Also notify manager if assigned
-        if (user.managerId) {
-          const manager = await userRepository.findOne({
-            where: { id: user.managerId, isActive: true },
-          });
+        // If no approvers were found through the workflow, log a warning
+        if (approversToNotify.length === 0) {
+          logger.warn(`No approvers found for leave request from user ${user.id} using workflow. Please ensure approval workflows are properly configured.`);
           
-          if (manager) {
-            // Send email notification to manager
-            await emailService.sendLeaveRequestNotification(
-              manager.email,
-              `${user.firstName} ${user.lastName}`,
-              leaveType.name,
-              formatDate(start),
-              formatDate(end),
-              reason
-            );
-          }
+          // Return a message to the user
+          return h
+            .response({
+              message: "No approvers found for your leave request. Please contact your administrator to set up the approval workflow.",
+              success: false
+            })
+            .code(400);
         }
-      }
-      // If no team lead is assigned, fall back to manager notification
-      else if (user.managerId) {
-        const manager = await userRepository.findOne({
-          where: { id: user.managerId, isActive: true },
-        });
         
-        if (manager) {
-          // Send email notification to manager
+        // Send notifications to all identified approvers
+        for (const approver of approversToNotify) {
+          let roleInfo = "";
+          if (user.role !== UserRole.EMPLOYEE) {
+            roleInfo = ` (${user.role})`;
+          }
+          
+          let additionalNote = "";
+          if (leaveRequest.metadata.requiredApprovalLevels.length > 1) {
+            additionalNote = "\n\nNote: This leave request requires multi-level approval.";
+          }
+          
           await emailService.sendLeaveRequestNotification(
-            manager.email,
-            `${user.firstName} ${user.lastName}`,
+            approver.email,
+            `${user.firstName} ${user.lastName}${roleInfo}`,
             leaveType.name,
             formatDate(start),
             formatDate(end),
-            reason
+            reason + additionalNote
           );
         }
       }
+    } catch (error) {
+      logger.error(`Error sending notifications for leave request: ${error}`);
+      // Continue with the process even if notifications fail
     }
 
     return h
@@ -503,14 +601,20 @@ export const getManagerLeaveRequests = async (
       const allUsers = await userRepository.find();
       managedUserIds = allUsers.map((user) => user.id);
     }
-    // For managers, get only their team members
+    // For managers, get their team members and their own leave requests
     else if (userRole === UserRole.MANAGER) {
       // Get all users managed by this manager
       const managedUsers = await userRepository.find({
         where: { managerId: userId as string },
       });
 
-      if (managedUsers.length === 0) {
+      // Include the manager's own ID to see their own leave requests
+      managedUserIds = [...managedUsers.map((user) => user.id), userId as string];
+      
+      if (managedUserIds.length === 1 && managedUserIds[0] === userId) {
+        // If the manager has no team members, they should still see their own leave requests
+        // No need to return early
+      } else if (managedUserIds.length === 0) {
         return h
           .response({
             leaveRequests: [],
@@ -518,17 +622,21 @@ export const getManagerLeaveRequests = async (
           })
           .code(200);
       }
-
-      managedUserIds = managedUsers.map((user) => user.id);
     }
-    // For team leads, get only their team members
+    // For team leads, get their team members and their own leave requests
     else if (userRole === UserRole.TEAM_LEAD) {
       // Get all users where this user is the team lead
       const teamMembers = await userRepository.find({
         where: { teamLeadId: userId as string },
       });
 
-      if (teamMembers.length === 0) {
+      // Include the team lead's own ID to see their own leave requests
+      managedUserIds = [...teamMembers.map((user) => user.id), userId as string];
+      
+      if (managedUserIds.length === 1 && managedUserIds[0] === userId) {
+        // If the team lead has no team members, they should still see their own leave requests
+        // No need to return early
+      } else if (managedUserIds.length === 0) {
         return h
           .response({
             leaveRequests: [],
@@ -536,8 +644,6 @@ export const getManagerLeaveRequests = async (
           })
           .code(200);
       }
-
-      managedUserIds = teamMembers.map((user) => user.id);
     }
 
     // Build query
@@ -669,42 +775,23 @@ export const updateLeaveRequestStatus = async (
       leaveRequest.userId === approverId &&
       normalizedStatus === LeaveRequestStatus.CANCELLED;
     
-    // Special cases for role-specific approval flows
-    const isTeamLeadRequest = requestUser.role === UserRole.TEAM_LEAD;
-    const isManagerRequest = requestUser.role === UserRole.MANAGER;
-    const isHRRequest = requestUser.role === UserRole.HR;
-    const isManagerApprovingTeamLead = isTeamLeadRequest && approver.role === UserRole.MANAGER && isManager;
-    const isHRApprovingManager = isManagerRequest && approver.role === UserRole.HR;
-    const isAdminApprovingHR = isHRRequest && approver.role === UserRole.SUPER_ADMIN;
+    // Check if the approver is authorized based on department and role
+    const authorizationCheck = await approverService.isApproverAuthorized(
+      approverId as string,
+      leaveRequest.userId
+    );
     
-    // If it's a special case approval, we'll bypass the regular authorization check
-    if (!isManagerApprovingTeamLead && !isHRApprovingManager && !isAdminApprovingHR) {
-      // Check if the approver is authorized based on department and role
-      const authorizationCheck = await approverService.isApproverAuthorized(
-        approverId as string,
-        leaveRequest.userId
-      );
-      
-      // Check if team lead is trying to approve a leave request longer than 2 days
-      if (isTeamLead && 
-          normalizedStatus === LeaveRequestStatus.APPROVED && 
-          leaveRequest.numberOfDays > 2) {
-        // For leaves > 2 days, team lead can approve but it will need further approval
-        // This will be handled by the multi-level approval workflow
-      } else if (!authorizationCheck.isAuthorized && !isSelfCancellation) {
-        return h
-          .response({
-            message: authorizationCheck.reason || "You are not authorized to update this leave request",
-          })
-          .code(403);
-      }
-    } else if (isManagerApprovingTeamLead) {
-      logger.info(`Manager ${approverId} is authorized to approve Team Lead ${leaveRequest.userId} request`);
-    } else if (isHRApprovingManager) {
-      logger.info(`HR ${approverId} is authorized to approve Manager ${leaveRequest.userId} request`);
-    } else if (isAdminApprovingHR) {
-      logger.info(`Admin ${approverId} is authorized to approve HR ${leaveRequest.userId} request`);
+    // Allow self-cancellation
+    if (!authorizationCheck.isAuthorized && !isSelfCancellation) {
+      return h
+        .response({
+          message: authorizationCheck.reason || "You are not authorized to update this leave request",
+        })
+        .code(403);
     }
+    
+    // Log the authorization
+    logger.info(`User ${approverId} is authorized to update leave request ${leaveRequest.id} for user ${leaveRequest.userId}`);
 
     // Check if multi-level approval is required
     if (normalizedStatus === LeaveRequestStatus.APPROVED) {
@@ -811,16 +898,9 @@ export const updateLeaveRequestStatus = async (
           
           if (nextLevelDefinition) {
             // Check if this approver matches the next level
-            if (nextLevelDefinition.approverType) {
-              // Check if the current approver is the assigned approver for this level
-              const assignedApprover = await approverService.findApproverByType(
-                leaveRequest.userId,
-                nextLevelDefinition.approverType
-              );
-              
-              if (assignedApprover && assignedApprover.id === approverId) {
-                currentApproverLevel = nextLevel;
-              } else if (nextLevelDefinition.fallbackRoles && nextLevelDefinition.fallbackRoles.includes(approver.role)) {
+            if (nextLevelDefinition.roleIds && nextLevelDefinition.roleIds.length > 0) {
+              // Check if the current approver has one of the required roles for this level
+              if (approver.roleId && nextLevelDefinition.roleIds.includes(approver.roleId)) {
                 currentApproverLevel = nextLevel;
               }
             } else {
@@ -834,56 +914,24 @@ export const updateLeaveRequestStatus = async (
             }
           }
         } else {
-          // Special case for Team Lead requests being approved by their manager
-          if (requestUser.role === UserRole.TEAM_LEAD && approver.role === UserRole.MANAGER && isManager) {
-            logger.info(`Manager ${approverId} is approving Team Lead ${leaveRequest.userId} request`);
-            // For Team Lead requests, managers should be able to approve at Level 1
-            currentApproverLevel = 1;
-          }
-          // Special case for Manager requests being approved by HR
-          else if (requestUser.role === UserRole.MANAGER && approver.role === UserRole.HR) {
-            logger.info(`HR ${approverId} is approving Manager ${leaveRequest.userId} request`);
-            // For Manager requests, HR should be able to approve at Level 1
-            currentApproverLevel = 1;
-          }
-          // Special case for HR requests being approved by Super Admin
-          else if (requestUser.role === UserRole.HR && 
-                  approver.role === UserRole.SUPER_ADMIN) {
-            logger.info(`Super Admin ${approverId} is approving HR ${leaveRequest.userId} request`);
-            // For HR requests, Super Admin should be able to approve at Level 1
-            currentApproverLevel = 1;
-          }
-          // Regular approval flow
-          else {
-            // For new approvals, check all levels
-            for (const level of sortedLevels) {
-              // Check if this is a new format level with approverType
-              if (level.approverType) {
-                // Check if the current approver is the assigned approver for this level
-                const assignedApprover = await approverService.findApproverByType(
-                  leaveRequest.userId,
-                  level.approverType
-                );
-                
-                if (assignedApprover && assignedApprover.id === approverId) {
-                  currentApproverLevel = level.level;
-                  break;
-                }
-                
-                // If no assigned approver or not matching, check fallback roles
-                if (level.fallbackRoles && level.fallbackRoles.includes(approver.role)) {
-                  currentApproverLevel = level.level;
-                  break;
-                }
-              } else {
-                // Legacy format - check by role
-                const roles = Array.isArray(level.roles)
-                  ? level.roles
-                  : [level.roles];
-                if (roles.includes(approver.role)) {
-                  currentApproverLevel = level.level;
-                  break;
-                }
+          // Regular approval flow - no special cases
+          // For new approvals, check all levels
+          for (const level of sortedLevels) {
+            // Check if this is a new format level with roleIds
+            if (level.roleIds && level.roleIds.length > 0) {
+              // Check if the current approver has one of the required roles for this level
+              if (approver.roleId && level.roleIds.includes(approver.roleId)) {
+                currentApproverLevel = level.level;
+                break;
+              }
+            } else {
+              // Legacy format - check by role
+              const roles = Array.isArray(level.roles)
+                ? level.roles
+                : [level.roles];
+              if (roles.includes(approver.role)) {
+                currentApproverLevel = level.level;
+                break;
               }
             }
           }
@@ -916,6 +964,39 @@ export const updateLeaveRequestStatus = async (
             leaveRequest.approverComments += `\nComments: ${comments}`;
           }
 
+          // Check for overlapping approved leave requests before partial approval
+          const overlappingLeaveRequests = await leaveRequestRepository.find({
+            where: [
+              {
+                userId: leaveRequest.userId,
+                status: LeaveRequestStatus.APPROVED,
+                startDate: LessThanOrEqual(leaveRequest.endDate),
+                endDate: MoreThanOrEqual(leaveRequest.startDate),
+                id: Not(leaveRequest.id) // Exclude the current request
+              }
+            ],
+          });
+
+          if (overlappingLeaveRequests.length > 0) {
+            // Log the overlapping requests for debugging
+            logger.warn(`Overlapping leave requests found for user ${leaveRequest.userId} when partially approving request ${leaveRequest.id}`);
+            for (const overlap of overlappingLeaveRequests) {
+              logger.warn(`Overlapping leave: ID ${overlap.id}, Start: ${formatDate(overlap.startDate)}, End: ${formatDate(overlap.endDate)}`);
+            }
+            
+            return h
+              .response({
+                message: "Cannot approve this leave request as it overlaps with already approved leave requests",
+                overlappingRequests: overlappingLeaveRequests.map(r => ({
+                  id: r.id,
+                  startDate: formatDate(r.startDate),
+                  endDate: formatDate(r.endDate),
+                  leaveTypeId: r.leaveTypeId
+                }))
+              })
+              .code(409);
+          }
+
           // Update status to PARTIALLY_APPROVED
           leaveRequest.status = LeaveRequestStatus.PARTIALLY_APPROVED;
           leaveRequest.approverId = approverId as string;
@@ -924,6 +1005,11 @@ export const updateLeaveRequestStatus = async (
           const metadata = leaveRequest.metadata || {};
           metadata.currentApprovalLevel = currentApproverLevel;
           metadata.requiredApprovalLevels = sortedLevels.map((l) => l.level);
+          
+          // Preserve the requestUserRole if it exists
+          if (!metadata.requestUserRole && requestUser) {
+            metadata.requestUserRole = requestUser.role;
+          }
 
           // Add to approval history
           if (!metadata.approvalHistory) {
@@ -952,12 +1038,12 @@ export const updateLeaveRequestStatus = async (
           if (nextLevel) {
             let potentialApprovers: User[] = [];
             
-            // Check if this is a new format level with approverType
-            if (nextLevel.approverType) {
-              // Get potential approvers using our new service
-              potentialApprovers = await approverService.getPotentialApprovers(
-                leaveRequest.userId,
-                nextLevel
+            // Check if this is a new format level with roleIds
+            if (nextLevel.roleIds && nextLevel.roleIds.length > 0) {
+              // Get potential approvers by role IDs
+              potentialApprovers = await approverService.findApproversByRoleIds(
+                nextLevel.roleIds,
+                nextLevel.departmentSpecific ? leaveRequest.user?.department : undefined
               );
             } else {
               // Legacy format - find by role
@@ -1071,6 +1157,39 @@ export const updateLeaveRequestStatus = async (
 
     // Update leave balance if approved
     if (normalizedStatus === LeaveRequestStatus.APPROVED) {
+      // Check for overlapping approved leave requests (excluding the current one)
+      const overlappingLeaveRequests = await leaveRequestRepository.find({
+        where: [
+          {
+            userId: leaveRequest.userId,
+            status: LeaveRequestStatus.APPROVED,
+            startDate: LessThanOrEqual(leaveRequest.endDate),
+            endDate: MoreThanOrEqual(leaveRequest.startDate),
+            id: Not(leaveRequest.id) // Exclude the current request
+          }
+        ],
+      });
+
+      if (overlappingLeaveRequests.length > 0) {
+        // Log the overlapping requests for debugging
+        logger.warn(`Overlapping leave requests found for user ${leaveRequest.userId} when approving request ${leaveRequest.id}`);
+        for (const overlap of overlappingLeaveRequests) {
+          logger.warn(`Overlapping leave: ID ${overlap.id}, Start: ${formatDate(overlap.startDate)}, End: ${formatDate(overlap.endDate)}`);
+        }
+        
+        return h
+          .response({
+            message: "Cannot approve this leave request as it overlaps with already approved leave requests",
+            overlappingRequests: overlappingLeaveRequests.map(r => ({
+              id: r.id,
+              startDate: formatDate(r.startDate),
+              endDate: formatDate(r.endDate),
+              leaveTypeId: r.leaveTypeId
+            }))
+          })
+          .code(409);
+      }
+
       const leaveBalanceRepository = AppDataSource.getRepository(LeaveBalance);
       const leaveBalance = await leaveBalanceRepository.findOne({
         where: {

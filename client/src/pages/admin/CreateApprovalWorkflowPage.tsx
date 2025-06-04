@@ -3,23 +3,25 @@ import { useNavigate } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createApprovalWorkflow } from "../../services/approvalWorkflowService";
-import { getAllUsers } from "../../services/userService";
+
 import { getAllWorkflowCategories, WorkflowCategory } from "../../services/workflowCategoryService";
-import { getAllApproverTypes, ApproverType } from "../../services/approverTypeService";
-import { getWorkflowLevelsForApprovalWorkflow } from "../../services/workflowLevelService";
+import { getAllDepartments, Department } from "../../services/departmentService";
+import { getActiveRoles, Role } from "../../services/roleService";
 
 type FormValues = {
   name: string;
   description: string;
   categoryId: string;
+  departmentId: string;
+  roleId: string;
   minDays: number;
   maxDays: number;
   isActive: boolean;
   steps: {
     order: number;
-    approverType: string;
-    approverId?: string;
-    required: boolean;
+    roleIds: string[];         // Role IDs for this approval step
+    departmentSpecific: boolean; // Whether approval is department-specific
+    required: boolean;         // Whether this step is required
   }[];
 };
 
@@ -28,24 +30,23 @@ export default function CreateApprovalWorkflowPage() {
   const [error, setError] = useState<React.ReactNode | null>(null);
   const [useCustomDays, setUseCustomDays] = useState(false);
 
-  const { data: users = [] } = useQuery({
-    queryKey: ["users"],
-    queryFn: getAllUsers,
-  });
+
 
   const { data: categories = [] } = useQuery({
     queryKey: ["workflowCategories"],
     queryFn: () => getAllWorkflowCategories({ isActive: true }),
   });
 
-  const { data: approverTypes = [] } = useQuery({
-    queryKey: ["approverTypes"],
-    queryFn: () => getAllApproverTypes({ isActive: true }),
+
+
+  const { data: roles = [] } = useQuery({
+    queryKey: ["roles"],
+    queryFn: () => getActiveRoles(),
   });
   
-  const { data: workflowLevels = [] } = useQuery({
-    queryKey: ["workflowLevelsForApproval"],
-    queryFn: getWorkflowLevelsForApprovalWorkflow,
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments"],
+    queryFn: () => getAllDepartments({ isActive: true }),
   });
 
   const {
@@ -60,6 +61,8 @@ export default function CreateApprovalWorkflowPage() {
       name: "",
       description: "",
       categoryId: "",
+      departmentId: "",
+      roleId: "",
       minDays: 0.5,
       maxDays: 2,
       isActive: true,
@@ -72,7 +75,6 @@ export default function CreateApprovalWorkflowPage() {
     name: "steps",
   });
 
-  const watchSteps = watch("steps");
   const watchCategoryId = watch("categoryId");
 
   // Update min/max days when category changes
@@ -181,43 +183,12 @@ export default function CreateApprovalWorkflowPage() {
     console.log("Formatted steps:", formattedSteps);
 
     // Convert steps to approvalLevels format expected by the server
-    const approvalLevels = formattedSteps.map((step, index) => {
-      // Determine the role value based on approverType
-      let roleValue: string;
-      let backendApproverType: string;
-      
-      if (step.approverType === "specific_user" && step.approverId) {
-        roleValue = step.approverId;
-        backendApproverType = "specificUser";
-      } else if (step.approverType === "team_lead") {
-        roleValue = "TEAM_LEAD";
-        backendApproverType = "teamLead";
-      } else if (step.approverType === "manager") {
-        roleValue = "MANAGER";
-        backendApproverType = "manager";
-      } else if (step.approverType === "hr") {
-        roleValue = "HR";
-        backendApproverType = "hr";
-      } else if (step.approverType === "department_head") {
-        roleValue = "MANAGER"; // Department head is typically a manager role
-        backendApproverType = "departmentHead";
-      } else {
-        roleValue = step.approverType.toUpperCase();
-        backendApproverType = step.approverType;
-      }
-      
-      const approvalLevel = {
-        level: index + 1,
-        roles: [roleValue],
-        departmentSpecific: step.approverType !== "specific_user", // Set department-specific for role-based approvers
-        approverType: backendApproverType,
-        fallbackRoles: [roleValue], // Add fallback roles matching the primary role
-        required: step.required
-      };
-      
-      console.log("Created approval level:", approvalLevel);
-      return approvalLevel;
-    });
+    const approvalLevels = formattedSteps.map((step, index) => ({
+      level: index + 1,
+      roles: step.roleIds.filter(id => id), // Remove empty role IDs
+      departmentSpecific: step.departmentSpecific || false,
+      required: step.required || false,
+    }));
 
     console.log("Final approval levels:", approvalLevels);
 
@@ -248,17 +219,16 @@ export default function CreateApprovalWorkflowPage() {
       return;
     }
     
-    // Get the next workflow level based on current steps
+    // Get the next step order based on current steps
     const nextLevel = fields.length + 1;
-    const matchingLevel = workflowLevels.find(level => level.level === nextLevel);
     
-    // Use the matching level's approver type if available, otherwise use the first approver type or default to "team_lead"
-    const defaultApproverType = matchingLevel?.approverType || 
-                               (approverTypes.length > 0 ? approverTypes[0].code : "team_lead");
+    // Use default role if available
+    const defaultRoleId = roles.length > 0 ? roles[0].id : "";
     
     append({
       order: nextLevel,
-      approverType: defaultApproverType,
+      roleIds: defaultRoleId ? [defaultRoleId] : [],
+      departmentSpecific: false,
       required: true,
     });
   };
@@ -302,34 +272,73 @@ export default function CreateApprovalWorkflowPage() {
           />
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Workflow Category
+            </label>
+            <select
+              {...register("categoryId")}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            >
+              <option value="">Select a category (optional)</option>
+              {categories.map((category: WorkflowCategory) => (
+                <option key={category.id} value={category.id}>
+                  {category.name} ({category.minDays} - {category.maxDays} days, max {category.maxSteps} steps)
+                </option>
+              ))}
+            </select>
+            <div className="mt-2">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={useCustomDays}
+                  onChange={(e) => setUseCustomDays(e.target.checked)}
+                  className="mr-2 h-5 w-5"
+                />
+                <span className="text-gray-700 text-sm">
+                  Use custom day range (override category)
+                </span>
+              </label>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Department
+            </label>
+            <select
+              {...register("departmentId")}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            >
+              <option value="">Select a department (optional)</option>
+              {departments.map((department: Department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
         <div className="mb-6">
           <label className="block text-gray-700 text-sm font-bold mb-2">
-            Workflow Category
+            Role
           </label>
           <select
-            {...register("categoryId")}
+            {...register("roleId")}
             className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           >
-            <option value="">Select a category (optional)</option>
-            {categories.map((category: WorkflowCategory) => (
-              <option key={category.id} value={category.id}>
-                {category.name} ({category.minDays} - {category.maxDays} days, max {category.maxSteps} steps)
+            <option value="">Select a role (optional)</option>
+            {roles.map((role: Role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
               </option>
             ))}
           </select>
-          <div className="mt-2">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={useCustomDays}
-                onChange={(e) => setUseCustomDays(e.target.checked)}
-                className="mr-2 h-5 w-5"
-              />
-              <span className="text-gray-700 text-sm">
-                Use custom day range (override category)
-              </span>
-            </label>
-          </div>
+          <p className="text-sm text-gray-600 mt-1">
+            Selecting a role will create a role-specific tab in the Approval Management page.
+          </p>
         </div>
 
         <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 ${!useCustomDays && watchCategoryId ? 'opacity-50' : ''}`}>
@@ -386,23 +395,6 @@ export default function CreateApprovalWorkflowPage() {
             </span>
           </label>
         </div>
-
-        {workflowLevels.length > 0 && (
-          <div className="mb-6 bg-blue-50 border border-blue-200 p-4 rounded-md">
-            <h3 className="text-lg font-semibold text-blue-800 mb-2">Available Workflow Levels</h3>
-            <p className="text-blue-700 mb-2">
-              The system has the following predefined workflow levels that will be used as defaults when adding steps:
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
-              {workflowLevels.map((level) => (
-                <div key={level.level} className="bg-white p-3 rounded border border-blue-100 shadow-sm">
-                  <div className="font-medium text-blue-800">Level {level.level}: {level.name}</div>
-                  <div className="text-sm text-gray-600 mt-1">{level.description}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
@@ -500,58 +492,35 @@ export default function CreateApprovalWorkflowPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-700 text-sm font-bold mb-2">
-                    Approver Type *
+                    Approver Roles *
                   </label>
                   <select
-                    {...register(`steps.${index}.approverType`, {
+                    {...register(`steps.${index}.roleIds.0`, {
                       required: true,
                     })}
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                   >
-                    {approverTypes.length > 0 ? (
-                      approverTypes.map((type: ApproverType) => (
-                        <option key={type.id} value={type.code}>
-                          {type.name}
-                        </option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="team_lead">Team Lead (L-1)</option>
-                        <option value="manager">Direct Manager</option>
-                        <option value="hr">HR Department</option>
-                        <option value="department_head">Department Head</option>
-                        <option value="specific_user">Specific User</option>
-                      </>
-                    )}
+                    <option value="">Select a role</option>
+                    {roles.map((role: Role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                {watchSteps[index]?.approverType === "specific_user" && (
-                  <div>
-                    <label className="block text-gray-700 text-sm font-bold mb-2">
-                      Select User *
-                    </label>
-                    <select
-                      {...register(`steps.${index}.approverId`, {
-                        required:
-                          watchSteps[index]?.approverType === "specific_user",
-                      })}
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    >
-                      <option value="">Select a user</option>
-                      {users.map((user: any) => (
-                        <option key={user.id} value={user.id}>
-                          {user.firstName} {user.lastName} ({user.email})
-                        </option>
-                      ))}
-                    </select>
-                    {errors.steps?.[index]?.approverId && (
-                      <p className="text-red-500 text-xs italic">
-                        User is required
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      {...register(`steps.${index}.departmentSpecific`)}
+                      className="mr-2 h-5 w-5"
+                    />
+                    <span className="text-gray-700 text-sm">
+                      Department Specific (only approvers from the same department)
+                    </span>
+                  </label>
+                </div>
 
                 <div className="md:col-span-2">
                   <label className="flex items-center">

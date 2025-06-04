@@ -16,6 +16,7 @@ interface Config {
     username: string;
     password: string;
     database: string;
+    url?: string;
   };
   jwt: {
     secret: string;
@@ -31,18 +32,34 @@ interface Config {
 }
 
 const config: Config = {
-  server: {
+  // server: {
+  //   port: parseInt(process.env.PORT || '10000', 10),
+  //   host: process.env.HOST || '0.0.0.0',
+  //   nodeEnv: process.env.NODE_ENV || 'development',
+  // },
+  // database: {
+  //   host: process.env.DB_HOST || 'localhost',
+  //   port: parseInt(process.env.DB_PORT || '5432', 10),
+  //   username: process.env.DB_USERNAME || 'pradeepkalyan',
+  //   password: process.env.DB_PASSWORD || 'Ie4QVOtO9IPfD3NYLk0nhZLpVBx3BYrm',
+  //   database: process.env.DB_DATABASE || 'leave_management_odpr',
+  //   url: process.env.DATABASE_URL || 'postgresql://pradeepkalyan:Ie4QVOtO9IPfD3NYLk0nhZLpVBx3BYrm@dpg-d0qqb93uibrs73erg1eg-a.oregon-postgres.render.com/leave_management_odpr',
+  // },
+
+   server: {
     port: parseInt(process.env.PORT || '3000', 10),
     host: process.env.HOST || 'localhost',
     nodeEnv: process.env.NODE_ENV || 'development',
   },
   database: {
     host: process.env.DB_HOST || 'localhost',
-    port: parseInt( '5434', 10),
-    username :'pradeepkalyan',
-    password: 'admin',
-    database: 'leave_management',
+    port: parseInt(process.env.DB_PORT || '5434', 10),
+    username: process.env.DB_USERNAME || 'pradeepkalyan',
+    password: process.env.DB_PASSWORD || 'admin',
+    database: process.env.DB_DATABASE || 'leave_management',
   },
+
+  
   jwt: {
     secret: process.env.JWT_SECRET || 'your_jwt_secret_key',
     expiration: process.env.JWT_EXPIRATION || '1d',

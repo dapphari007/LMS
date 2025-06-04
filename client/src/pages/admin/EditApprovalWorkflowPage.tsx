@@ -7,9 +7,9 @@ import {
   updateApprovalWorkflow,
   ApprovalWorkflow,
 } from "../../services/approvalWorkflowService";
-import { getAllUsers } from "../../services/userService";
+
 import { getAllWorkflowCategories, WorkflowCategory } from "../../services/workflowCategoryService";
-import { getAllApproverTypes, ApproverType } from "../../services/approverTypeService";
+import { getActiveRoles, Role } from "../../services/roleService";
 
 type FormValues = {
   name: string;
@@ -21,9 +21,9 @@ type FormValues = {
   steps: {
     id?: string;
     order: number;
-    approverType: string;
-    approverId?: string;
-    required: boolean;
+    roleIds: string[];         // Role IDs for this approval step
+    departmentSpecific: boolean; // Whether approval is department-specific
+    required: boolean;         // Whether this step is required
   }[];
 };
 
@@ -32,25 +32,21 @@ export default function EditApprovalWorkflowPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<React.ReactNode | null>(null);
 
-  const { data: workflow, isLoading: isLoadingWorkflow } = useQuery({
+  const { data: workflow, isLoading: isLoadingWorkflow, isError: isWorkflowError, error: workflowError } = useQuery({
     queryKey: ["approvalWorkflow", id],
     queryFn: () => getApprovalWorkflowById(id as string),
     enabled: !!id,
+    retry: 1, // Only retry once to avoid excessive requests
   });
 
-  const { data: users = [] } = useQuery({
-    queryKey: ["users"],
-    queryFn: getAllUsers,
-  });
-  
   const { data: categories = [] } = useQuery({
     queryKey: ["workflowCategories"],
     queryFn: () => getAllWorkflowCategories({ isActive: true }),
   });
   
-  const { data: approverTypes = [] } = useQuery({
-    queryKey: ["approverTypes"],
-    queryFn: () => getAllApproverTypes({ isActive: true }),
+  const { data: roles = [] } = useQuery({
+    queryKey: ["roles"],
+    queryFn: getActiveRoles,
   });
 
   const {
@@ -73,70 +69,58 @@ export default function EditApprovalWorkflowPage() {
   });
 
   useEffect(() => {
-    if (workflow) {
+    if (workflow && roles.length > 0) {
       console.log("Original workflow data:", workflow);
       
       // Convert approvalLevels from backend to steps format for the form
       const steps = workflow.approvalLevels?.map((level: {
         level: number;
-        roles: string[];
-        approverType?: string;
-        fallbackRoles?: string[];
+        roleIds?: string[];
+        roles?: string[];
         departmentSpecific?: boolean;
         required?: boolean;
       }) => {
         console.log("Processing approval level:", level);
         
-        // Determine approver type and approverId based on roles
-        let approverType: "team_lead" | "manager" | "hr" | "department_head" | "specific_user" = "team_lead";
-        let approverId: string | undefined = undefined;
+        // Use roleIds if available, otherwise try to map from legacy roles
+        let roleIds: string[] = [];
+        let departmentSpecific = level.departmentSpecific || false;
         
-        // First check if there's an approverType field directly in the level
-        if (level.approverType) {
-          console.log("Found approverType in level:", level.approverType);
+        if (level.roleIds && level.roleIds.length > 0) {
+          // New format with roleIds
+          roleIds = level.roleIds.filter(id => id); // Remove empty IDs
+        } else if (level.roles && level.roles.length > 0) {
+          // Legacy format - try to find matching role IDs
+          const role = level.roles[0];
+          console.log("Legacy role value:", role);
           
-          // Map backend approverType to frontend approverType
-          if (level.approverType === "teamLead") {
-            approverType = "team_lead";
-          } else if (level.approverType === "manager") {
-            approverType = "manager";
-          } else if (level.approverType === "hr") {
-            approverType = "hr";
-          } else if (level.approverType === "departmentHead") {
-            approverType = "department_head";
-          } else if (level.approverType === "specificUser") {
-            approverType = "specific_user";
-            // In this case, the first role should be the user ID
-            if (Array.isArray(level.roles) && level.roles.length > 0) {
-              approverId = level.roles[0];
-            }
-          }
-        } else {
-          // Fallback to checking roles if no approverType is specified
-          const role = Array.isArray(level.roles) && level.roles.length > 0 ? level.roles[0] : "";
-          console.log("Role value:", role);
+          // Map legacy role names to role IDs
+          const matchingRole = roles.find(r => {
+            const roleName = r.name.toLowerCase().replace(/\s+/g, '_');
+            return roleName === role.toLowerCase() || 
+                   r.name.toUpperCase() === role.toUpperCase() ||
+                   roleName === role.toLowerCase().replace(/\s+/g, '_');
+          });
           
-          if (role === "TEAM_LEAD" || role === "team_lead") {
-            approverType = "team_lead";
-          } else if (role === "MANAGER" || role === "manager") {
-            approverType = "manager";
-          } else if (role === "HR" || role === "hr") {
-            approverType = "hr";
-          } else if (role === "DEPARTMENT_HEAD" || role === "department_head") {
-            approverType = "department_head";
-          } else if (role && role !== "SUPER_ADMIN" && role !== "EMPLOYEE") {
-            // If it's not a standard role, assume it's a user ID
-            approverType = "specific_user";
-            approverId = role;
+          if (matchingRole) {
+            roleIds = [matchingRole.id];
+            // Set department specific based on role type
+            const roleName = matchingRole.name.toLowerCase();
+            departmentSpecific = roleName.includes('team') || roleName.includes('manager') || roleName.includes('department');
           }
+        }
+        
+        // If no roleIds found, use the first available role as default
+        if (roleIds.length === 0 && roles.length > 0) {
+          roleIds = [roles[0].id];
         }
         
         const step = {
           id: `step-${level.level}`,
           order: level.level,
-          approverType,
-          approverId,
-          required: level.required !== undefined ? level.required : true, // Use level.required if available, otherwise default to true
+          roleIds,
+          departmentSpecific,
+          required: level.required !== undefined ? level.required : true,
         };
         
         console.log("Created step:", step);
@@ -155,14 +139,13 @@ export default function EditApprovalWorkflowPage() {
         steps: steps,
       });
     }
-  }, [workflow, reset]);
+  }, [workflow, roles, reset]);
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: "steps",
   });
 
-  const watchSteps = watch("steps");
   const watchCategoryId = watch("categoryId");
   
   // Update min/max days when category changes
@@ -266,59 +249,13 @@ export default function EditApprovalWorkflowPage() {
     console.log("Formatted steps:", formattedSteps);
 
     // Convert steps to approvalLevels format expected by the server
-    const approvalLevels = formattedSteps.map((step, index) => {
-      // Determine the role value based on approverType
-      let roleValue: string;
-      let backendApproverType: string;
-      
-      if (step.approverType === "specific_user" && step.approverId) {
-        roleValue = step.approverId;
-        backendApproverType = "specificUser";
-      } else if (step.approverType === "team_lead") {
-        roleValue = "TEAM_LEAD";
-        backendApproverType = "teamLead";
-      } else if (step.approverType === "manager") {
-        roleValue = "MANAGER";
-        backendApproverType = "manager";
-      } else if (step.approverType === "hr") {
-        roleValue = "HR";
-        backendApproverType = "hr";
-      } else if (step.approverType === "department_head") {
-        roleValue = "MANAGER"; // Department head is typically a manager role
-        backendApproverType = "departmentHead";
-      } else {
-        roleValue = step.approverType.toUpperCase();
-        backendApproverType = step.approverType;
-      }
-      
-      // Create fallback roles based on the approver type
-      let fallbackRoles: string[] = [];
-      if (step.approverType === "team_lead") {
-        fallbackRoles = ["TEAM_LEAD"];
-      } else if (step.approverType === "manager") {
-        fallbackRoles = ["MANAGER"];
-      } else if (step.approverType === "hr") {
-        fallbackRoles = ["HR"];
-      } else if (step.approverType === "department_head") {
-        fallbackRoles = ["MANAGER"];
-      } else if (step.approverType === "specific_user" && step.approverId) {
-        fallbackRoles = [step.approverId];
-      } else {
-        fallbackRoles = [roleValue];
-      }
-      
-      const approvalLevel = {
-        level: index + 1,
-        roles: [roleValue],
-        departmentSpecific: step.approverType !== "specific_user", // Set department-specific for role-based approvers
-        approverType: backendApproverType,
-        fallbackRoles: fallbackRoles,
-        required: step.required
-      };
-      
-      console.log("Created approval level:", approvalLevel);
-      return approvalLevel;
-    });
+    const approvalLevels = formattedSteps.map((step, index) => ({
+      level: index + 1,
+      roles: step.roleIds.filter(id => id), // Remove empty role IDs
+      roleIds: step.roleIds.filter(id => id), // Remove empty role IDs
+      departmentSpecific: step.departmentSpecific || false,
+      required: step.required || false,
+    }));
 
     console.log("Final approval levels:", approvalLevels);
 
@@ -349,12 +286,16 @@ export default function EditApprovalWorkflowPage() {
       return;
     }
     
-    // Use the first approver type code if available, otherwise default to "team_lead"
-    const defaultApproverType = approverTypes.length > 0 ? approverTypes[0].code : "team_lead";
+    // Get the next step order based on current steps
+    const nextLevel = fields.length + 1;
+    
+    // Use default role if available
+    const defaultRoleId = roles.length > 0 ? roles[0].id : "";
     
     append({
-      order: fields.length + 1,
-      approverType: defaultApproverType,
+      order: nextLevel,
+      roleIds: defaultRoleId ? [defaultRoleId] : [],
+      departmentSpecific: false,
       required: true,
     });
   };
@@ -367,11 +308,18 @@ export default function EditApprovalWorkflowPage() {
     );
   }
 
-  if (!workflow && !isLoadingWorkflow) {
+  if ((!workflow && !isLoadingWorkflow) || isWorkflowError) {
+    const errorMessage = workflowError instanceof Error 
+      ? workflowError.message 
+      : "Workflow not found or you don't have permission to view it.";
+      
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          Workflow not found or you don't have permission to view it.
+          {errorMessage}
+          <p className="text-sm mt-2">
+            This could be due to an invalid workflow ID or insufficient permissions.
+          </p>
         </div>
         <button
           onClick={() => navigate("/approval-management")}
@@ -503,15 +451,46 @@ export default function EditApprovalWorkflowPage() {
             <div>
               <h3 className="text-lg font-semibold">Approval Steps</h3>
               {watchCategoryId && (
-                <p className="text-sm text-gray-600">
+                <div className="mt-1">
                   {(() => {
                     const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId);
                     if (selectedCategory) {
-                      return `Maximum ${selectedCategory.maxSteps} steps allowed for ${selectedCategory.name}`;
+                      // Determine status color based on current vs max steps
+                      const isOverLimit = fields.length > selectedCategory.maxSteps;
+                      const isAtLimit = fields.length === selectedCategory.maxSteps;
+                      const statusColor = 
+                        selectedCategory.maxSteps === 0 ? 'bg-red-100 text-red-800' :
+                        isOverLimit ? 'bg-red-100 text-red-800' :
+                        isAtLimit ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-blue-100 text-blue-800';
+                      
+                      return (
+                        <div className={`text-sm px-2 py-1 rounded inline-block ${statusColor}`}>
+                          {selectedCategory.maxSteps === 0 
+                            ? `No approval steps allowed for ${selectedCategory.name}` 
+                            : `${fields.length}/${selectedCategory.maxSteps} steps used for ${selectedCategory.name}`}
+                          
+                          {isOverLimit && (
+                            <button 
+                              type="button"
+                              className="ml-2 bg-white text-red-800 px-2 py-0.5 rounded text-xs border border-red-300"
+                              onClick={() => {
+                                // Remove excess steps from the end
+                                while (fields.length > selectedCategory.maxSteps) {
+                                  remove(fields.length - 1);
+                                }
+                                setError(null);
+                              }}
+                            >
+                              Auto-trim
+                            </button>
+                          )}
+                        </div>
+                      );
                     }
                     return null;
                   })()}
-                </p>
+                </div>
               )}
             </div>
             <button
@@ -532,7 +511,13 @@ export default function EditApprovalWorkflowPage() {
                 })()
               }`}
             >
-              Add Step
+              {(() => {
+                if (!watchCategoryId) return "Add Step";
+                const selectedCategory = categories.find((cat: WorkflowCategory) => cat.id === watchCategoryId);
+                return (selectedCategory && fields.length >= selectedCategory.maxSteps) 
+                  ? "Max Steps Reached" 
+                  : "Add Step";
+              })()}
             </button>
           </div>
 
@@ -557,49 +542,35 @@ export default function EditApprovalWorkflowPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-700 text-sm font-bold mb-2">
-                    Approver Type *
+                    Approver Roles *
                   </label>
                   <select
-                    {...register(`steps.${index}.approverType`, {
+                    {...register(`steps.${index}.roleIds.0`, {
                       required: true,
                     })}
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                   >
-                    {approverTypes.map((type: ApproverType) => (
-                      <option key={type.id} value={type.code}>
-                        {type.name}
+                    <option value="">Select a role</option>
+                    {roles.map((role: Role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
                       </option>
                     ))}
-                    <option value="specific_user">Specific User</option>
                   </select>
                 </div>
 
-                {watchSteps[index]?.approverType === "specific_user" && (
-                  <div>
-                    <label className="block text-gray-700 text-sm font-bold mb-2">
-                      Select User *
-                    </label>
-                    <select
-                      {...register(`steps.${index}.approverId`, {
-                        required:
-                          watchSteps[index]?.approverType === "specific_user",
-                      })}
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    >
-                      <option value="">Select a user</option>
-                      {users.map((user: any) => (
-                        <option key={user.id} value={user.id}>
-                          {user.firstName} {user.lastName} ({user.email})
-                        </option>
-                      ))}
-                    </select>
-                    {errors.steps?.[index]?.approverId && (
-                      <p className="text-red-500 text-xs italic">
-                        User is required
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      {...register(`steps.${index}.departmentSpecific`)}
+                      className="mr-2 h-5 w-5"
+                    />
+                    <span className="text-gray-700 text-sm">
+                      Department Specific (only approvers from the same department)
+                    </span>
+                  </label>
+                </div>
 
                 <div className="md:col-span-2">
                   <label className="flex items-center">
