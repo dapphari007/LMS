@@ -9,6 +9,7 @@ import {
 } from "typeorm";
 import { UserRole } from "./User";
 import { WorkflowCategory } from "./WorkflowCategory";
+import { Role } from "./Role";
 
 @Entity("approval_workflows")
 export class ApprovalWorkflow {
@@ -41,6 +42,13 @@ export class ApprovalWorkflow {
   @ManyToOne(() => WorkflowCategory, category => category.workflows)
   @JoinColumn({ name: "categoryId" })
   category: WorkflowCategory;
+
+  @Column({ nullable: true })
+  requesterRoleId: string;
+
+  @ManyToOne(() => Role, { nullable: true })
+  @JoinColumn({ name: "requesterRoleId" })
+  requesterRole: Role;
 
   @CreateDateColumn()
   createdAt: Date;

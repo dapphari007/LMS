@@ -17,7 +17,7 @@ const workflowCategoryRoutes: ServerRoute[] = [
     path: "/api/workflow-categories",
     handler: WorkflowCategoryController.getAllWorkflowCategoriesController,
     options: {
-      auth: { strategies: ["super_admin", "manager_hr", "admin"] },
+      auth: { strategies: ["super_admin", "hr", "admin"] },
       description: "Get all workflow categories",
       tags: ["api", "workflow-categories"],
     },
@@ -27,7 +27,7 @@ const workflowCategoryRoutes: ServerRoute[] = [
     path: "/api/workflow-categories/{id}",
     handler: WorkflowCategoryController.getWorkflowCategoryByIdController,
     options: {
-      auth: { strategies: ["super_admin", "manager_hr", "admin"] },
+      auth: { strategies: ["super_admin", "hr", "admin"] },
       description: "Get workflow category by ID",
       tags: ["api", "workflow-categories"],
     },

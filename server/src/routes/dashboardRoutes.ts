@@ -7,7 +7,7 @@ const dashboardRoutes: ServerRoute[] = [
     path: '/api/dashboard/manager',
     handler: DashboardController.getManagerDashboard,
     options: {
-      auth: 'manager_hr', // Changed from 'manager' to 'manager_hr' to allow HR access
+      auth: 'manager', 
       description: 'Get manager dashboard data',
       tags: ['api', 'dashboard'],
     },
@@ -27,7 +27,7 @@ const dashboardRoutes: ServerRoute[] = [
     path: '/api/dashboard/hr',
     handler: DashboardController.getHRDashboard,
     options: {
-      auth: 'manager_hr', // Changed from 'hr' to 'manager_hr' to be more flexible
+      auth: 'hr',
       description: 'Get HR dashboard data',
       tags: ['api', 'dashboard'],
     },

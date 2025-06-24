@@ -17,7 +17,7 @@ const userRoutes: ServerRoute[] = [
     path: "/api/users",
     handler: UserController.getAllUsers,
     options: {
-      auth: "manager_hr",
+      auth: "manager",
       description: "Get all users",
       tags: ["api", "users"],
     },
@@ -27,7 +27,7 @@ const userRoutes: ServerRoute[] = [
     path: "/api/users/{id}",
     handler: UserController.getUserById,
     options: {
-      auth: { strategies: ["super_admin", "manager_hr"] },
+      auth: { strategies: ["super_admin", "hr"] },
       description: "Get user by ID",
       tags: ["api", "users"],
     },

@@ -65,7 +65,5 @@ export const loggingPlugin = {
         }
       }
     );
-
-    logger.info("Logging plugin registered");
   },
 };

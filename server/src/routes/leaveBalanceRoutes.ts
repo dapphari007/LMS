@@ -17,7 +17,7 @@ const leaveBalanceRoutes: ServerRoute[] = [
     path: "/api/leave-balances",
     handler: LeaveBalanceController.getAllLeaveBalances,
     options: {
-      auth: { strategies: ["super_admin", "manager_hr"] },
+      auth: { strategies: ["super_admin", "hr"] },
       description: "Get all leave balances",
       tags: ["api", "leave-balances"],
     },
@@ -79,7 +79,7 @@ const leaveBalanceRoutes: ServerRoute[] = [
     path: "/api/leave-balances/{id}",
     handler: LeaveBalanceController.getLeaveBalanceById,
     options: {
-      auth: { strategies: ["super_admin", "manager_hr"] },
+      auth: { strategies: ["super_admin", "hr"] },
       description: "Get leave balance by ID",
       tags: ["api", "leave-balances"],
     },

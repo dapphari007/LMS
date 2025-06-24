@@ -45,11 +45,12 @@ const updateApprovalWorkflows = async () => {
             approverType = "superAdmin";
           }
           
+          // Return the object with the structure expected by the ApprovalWorkflow model
           return {
             level: level.level,
-            approverType,
-            fallbackRoles: level.roles,
-            roles: level.roles // Keep the old roles for backward compatibility
+            roleIds: level.roles, // Use the existing roles as roleIds
+            departmentSpecific: level.departmentSpecific || true, // Default to true if not present
+            required: level.required || true // Default to true if not present
           };
         });
         

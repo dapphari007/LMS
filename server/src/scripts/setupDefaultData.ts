@@ -24,7 +24,6 @@ const checkTableExists = async (tableName: string): Promise<boolean> => {
 
 export const setupDefaultData = async () => {
   try {
-    logger.info("Starting default data setup...");
 
     // Check if tables exist
     const departmentsTableExists = await checkTableExists("departments");

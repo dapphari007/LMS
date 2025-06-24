@@ -269,8 +269,8 @@ export const createLeaveRequest = async (
     
     // Get the appropriate approval workflow based on the number of days
     try {
-      // Get the workflow based on the number of days
-      const approvalWorkflow = await leaveRequestService.getApprovalWorkflow(numberOfDays);
+      // Get the workflow based on the number of days and requester's role
+      const approvalWorkflow = await leaveRequestService.getApprovalWorkflow(numberOfDays, user.roleId);
       
       // Set the current approval level to 0 (starting point)
       metadata.currentApprovalLevel = 0;
@@ -837,12 +837,27 @@ export const updateLeaveRequestStatus = async (
           }
         );
       } else {
-        // For new approvals, find the workflow based on the number of days
-        applicableWorkflow = approvalWorkflows.find(
-          (workflow) =>
-            leaveRequest.numberOfDays >= workflow.minDays &&
-            leaveRequest.numberOfDays <= workflow.maxDays
-        );
+        // For new approvals, find the workflow based on the number of days and requester's role
+        
+        // First, try to find a role-specific workflow
+        if (requestUser && requestUser.roleId) {
+          applicableWorkflow = approvalWorkflows.find(
+            (workflow) =>
+              leaveRequest.numberOfDays >= workflow.minDays &&
+              leaveRequest.numberOfDays <= workflow.maxDays &&
+              workflow.requesterRoleId === requestUser.roleId
+          );
+        }
+        
+        // If no role-specific workflow found, fall back to the default workflow (no requesterRoleId)
+        if (!applicableWorkflow) {
+          applicableWorkflow = approvalWorkflows.find(
+            (workflow) =>
+              leaveRequest.numberOfDays >= workflow.minDays &&
+              leaveRequest.numberOfDays <= workflow.maxDays &&
+              !workflow.requesterRoleId
+          );
+        }
       }
 
       if (applicableWorkflow) {
@@ -944,6 +959,21 @@ export const updateLeaveRequestStatus = async (
                 "You do not have the required role to approve this leave request",
             })
             .code(403);
+        }
+
+        // Check if this approver has already approved this request
+        if (leaveRequest.metadata && leaveRequest.metadata.approvalHistory) {
+          const hasAlreadyApproved = leaveRequest.metadata.approvalHistory.some(
+            (approval: any) => approval.approverId === approverId
+          );
+          
+          if (hasAlreadyApproved) {
+            return h
+              .response({
+                message: "You have already approved this leave request",
+              })
+              .code(400);
+          }
         }
 
         // Check if this is the highest level required for this leave request
