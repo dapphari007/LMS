@@ -11,6 +11,8 @@ import { syncPositions } from "./sync-positions";
  */
 export const syncEssentialData = async (closeConnection = true, skipWorkflows = false) => {
   try {
+    logger.info("Starting essential data synchronization...");
+    
     // Ensure database connection
     await ensureDatabaseConnection();
     
@@ -25,12 +27,14 @@ export const syncEssentialData = async (closeConnection = true, skipWorkflows = 
     
     // Sync approval workflows (only if not skipped)
     if (!skipWorkflows) {
+      logger.info("Synchronizing approval workflows as part of essential data sync...");
       await syncApprovalWorkflows();
-    }
+    } 
     
     // Close connection if requested
     if (closeConnection && AppDataSource.isInitialized) {
       await AppDataSource.destroy();
+      logger.info("Database connection closed");
     }
   } catch (error) {
     logger.error(`Error during essential data synchronization: ${error}`);
@@ -49,6 +53,8 @@ export const syncEssentialData = async (closeConnection = true, skipWorkflows = 
  */
 const syncRoles = async (): Promise<void> => {
   try {
+    logger.info("Synchronizing system roles...");
+    
     // Check if roles table exists
     const tableExists = await checkTableExists("roles");
     if (!tableExists) {
@@ -148,9 +154,6 @@ const syncRoles = async (): Promise<void> => {
     ];
     
     // Create or update system roles
-    let createdCount = 0;
-    let updatedCount = 0;
-    
     for (const roleData of systemRoles) {
       try {
         let role = await roleRepository.findOne({
@@ -162,9 +165,9 @@ const syncRoles = async (): Promise<void> => {
           role = new Role();
           role.name = roleData.name;
           role.isSystem = true;
-          createdCount++;
+          logger.info(`Creating system role: ${roleData.name}`);
         } else {
-          updatedCount++;
+          logger.info(`Updating system role: ${roleData.name}`);
         }
         
         // Update role properties
@@ -178,12 +181,7 @@ const syncRoles = async (): Promise<void> => {
       }
     }
     
-    if (createdCount > 0) {
-      logger.info(`Created ${createdCount} system roles`);
-    }
-    if (updatedCount > 0) {
-      logger.info(`Updated ${updatedCount} system roles`);
-    }
+    logger.info("System roles synchronization completed");
   } catch (error) {
     logger.error(`Error synchronizing roles: ${error}`);
   }
@@ -194,6 +192,8 @@ const syncRoles = async (): Promise<void> => {
  */
 const syncApprovalWorkflows = async (): Promise<void> => {
   try {
+    logger.info("Synchronizing approval workflows...");
+    
     // Check if approval_workflows table exists
     const tableExists = await checkTableExists("approval_workflows");
     if (!tableExists) {
@@ -208,11 +208,19 @@ const syncApprovalWorkflows = async (): Promise<void> => {
     
     if (existingWorkflowsCount > 0) {
       // If any workflows exist, don't create new ones
+      logger.info(`Found ${existingWorkflowsCount} existing approval workflows. No synchronization needed.`);
+      
+      // Log existing workflows for information
+      const existingWorkflows = await workflowRepository.find();
+      for (const workflow of existingWorkflows) {
+        logger.info(`Preserving existing approval workflow: ${workflow.name}`);
+      }
+      
       return;
     }
     
     // Only create default workflows if none exist
-    let createdCount = 0;
+    logger.info("No existing approval workflows found. Creating default workflows...");
     
     // Create all default workflows
     for (const workflowData of DEFAULT_APPROVAL_WORKFLOWS) {
@@ -225,15 +233,13 @@ const syncApprovalWorkflows = async (): Promise<void> => {
         workflow.isActive = true;
         
         await workflowRepository.save(workflow);
-        createdCount++;
+        logger.info(`Created approval workflow: ${workflowData.name}`);
       } catch (error) {
         logger.error(`Error creating workflow ${workflowData.name}: ${error}`);
       }
     }
     
-    if (createdCount > 0) {
-      logger.info(`Created ${createdCount} default approval workflows`);
-    }
+    logger.info("Approval workflows synchronization completed");
   } catch (error) {
     logger.error(`Error synchronizing approval workflows: ${error}`);
   }

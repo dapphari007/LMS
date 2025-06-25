@@ -161,14 +161,6 @@ export const holidayValidation = {
 /**
  * Approval workflow validation schemas
  */
-// Define the role validation schema to be reused
-const roleValidation = Joi.alternatives().try(
-  // Accept predefined role names
-  Joi.string().valid("super_admin", "hr", "manager"),
-  // Accept UUID format for role IDs
-  Joi.string().guid({ version: ['uuidv4'] })
-);
-
 export const approvalWorkflowValidation = {
   create: Joi.object({
     name: Joi.string().required(),
@@ -179,7 +171,7 @@ export const approvalWorkflowValidation = {
         Joi.object({
           level: Joi.number().integer().min(1).required(),
           roles: Joi.array()
-            .items(roleValidation)
+            .items(Joi.string().valid("super_admin", "hr", "manager"))
             .min(1)
             .required(),
         })
@@ -187,8 +179,6 @@ export const approvalWorkflowValidation = {
       .min(1)
       .required(),
     isActive: Joi.boolean().default(true),
-    categoryId: Joi.string().uuid().allow(null),
-    requesterRoleId: Joi.string().uuid().allow(null),
   }),
   update: Joi.object({
     name: Joi.string(),
@@ -199,14 +189,12 @@ export const approvalWorkflowValidation = {
         Joi.object({
           level: Joi.number().integer().min(1).required(),
           roles: Joi.array()
-            .items(roleValidation)
+            .items(Joi.string().valid("super_admin", "hr", "manager"))
             .min(1)
             .required(),
         })
       )
       .min(1),
     isActive: Joi.boolean(),
-    categoryId: Joi.string().uuid().allow(null),
-    requesterRoleId: Joi.string().uuid().allow(null),
   }),
 };

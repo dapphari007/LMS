@@ -1,109 +1,57 @@
 import { AppDataSource } from "../config/database";
 import logger from "../utils/logger";
 
-function extractTimestamp(name: string): string {
-  if (!name || !name.includes('-')) return '';
-  const parts = name.split('-');
-  return parts[0];
-}
+/**
+ * Helper function to safely extract timestamp from migration name.
+ */
+const extractTimestamp = (migrationName: string): number | null => {
+  if (!migrationName || !migrationName.includes('-')) return null;
+  const parts = migrationName.split('-');
+  const timestamp = parseInt(parts[0]);
+  return isNaN(timestamp) ? null : timestamp;
+};
 
-async function cleanMigrationsTable() {
-  const queryRunner = AppDataSource.createQueryRunner();
+/**
+ * Helper function to handle individual migration execution.
+ */
+const runIndividualMigration = async (migration: any, queryRunner: any) => {
+  const migrationName = migration.name;
+  const migrationTimestamp = extractTimestamp(migrationName) || Date.now();
+
   try {
-    const tableExists = await queryRunner.hasTable("migrations");
-    if (!tableExists) return;
+    const migrationExists = await AppDataSource.query(
+      `SELECT * FROM migrations WHERE name = $1`,
+      [migrationName]
+    );
 
-    // Remove null names
-    const nullNames = await queryRunner.query(`SELECT id FROM migrations WHERE name IS NULL`);
-    if (nullNames.length > 0) {
-      logger.info(`Found ${nullNames.length} migrations with null names, removing them`);
-      await queryRunner.query(`DELETE FROM migrations WHERE name IS NULL`);
+    if (migrationExists.length > 0) {
+      logger.info(`Migration ${migrationName} already applied, skipping`);
+      return;
     }
 
-    // Remove duplicates, keep latest
-    const duplicates = await queryRunner.query(`
-      SELECT name, COUNT(*) as count
-      FROM migrations
-      GROUP BY name
-      HAVING COUNT(*) > 1
-    `);
-
-    for (const dup of duplicates) {
-      const name = dup.name;
-      await queryRunner.query(`
-        DELETE FROM migrations
-        WHERE name = $1
-        AND id NOT IN (
-          SELECT id FROM migrations
-          WHERE name = $1
-          ORDER BY timestamp DESC
-          LIMIT 1
-        )
-      `, [name]);
-      logger.info(`Removed duplicates for migration: ${name}`);
-    }
-  } catch (err) {
-    logger.error("Error fixing migrations table:", err);
-  } finally {
-    await queryRunner.release();
-  }
-}
-
-async function runMigrationsIndividually(migrations: any[]) {
-  // Sort migrations by timestamp
-  const sortedMigrations = migrations.sort((a, b) => {
-    const aTimestamp = parseInt(extractTimestamp(a.name));
-    const bTimestamp = parseInt(extractTimestamp(b.name));
-    if (isNaN(aTimestamp) || isNaN(bTimestamp)) return 0;
-    return aTimestamp - bTimestamp;
-  });
-
-  logger.info(`Attempting to run ${sortedMigrations.length} migrations individually...`);
-
-  for (const migration of sortedMigrations) {
-    const migrationName = migration.name;
-    let migrationTimestamp = extractTimestamp(migrationName);
-    if (!migrationTimestamp || isNaN(parseInt(migrationTimestamp))) {
-      logger.warn(`Could not extract timestamp from migration name: ${migrationName}`);
-      migrationTimestamp = Date.now().toString();
-      logger.info(`Using current timestamp instead: ${migrationTimestamp}`);
-    }
+    logger.info(`Running migration: ${migrationName}`);
+    await queryRunner.startTransaction();
 
     try {
-      const migrationExists = await AppDataSource.query(
-        `SELECT * FROM migrations WHERE name = $1`,
-        [migrationName]
+      await migration.up(queryRunner);
+      await queryRunner.query(
+        `INSERT INTO migrations(timestamp, name) VALUES ($1, $2)`,
+        [migrationTimestamp, migrationName]
       );
-      if (migrationExists.length > 0) {
-        logger.info(`Migration ${migrationName} already applied, skipping`);
-        continue;
-      }
-
-      logger.info(`Running migration: ${migrationName}`);
-      const queryRunner = AppDataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-
-      try {
-        await migration.up(queryRunner);
-        await queryRunner.query(
-          `INSERT INTO migrations(timestamp, name) VALUES ($1, $2)`,
-          [migrationTimestamp, migrationName]
-        );
-        await queryRunner.commitTransaction();
-        logger.info(`Migration ${migrationName} completed successfully`);
-      } catch (transactionError: any) {
-        await queryRunner.rollbackTransaction();
-        logger.error(`Error in migration ${migrationName}: ${transactionError.message}`);
-      } finally {
-        await queryRunner.release();
-      }
-    } catch (individualError: any) {
-      logger.error(`Error processing migration ${migrationName}: ${individualError.message}`);
+      await queryRunner.commitTransaction();
+      logger.info(`Migration ${migrationName} completed successfully`);
+    } catch (transactionError) {
+      await queryRunner.rollbackTransaction();
+      logger.error(`Error in migration ${migrationName}: ${transactionError.message}`);
     }
+  } catch (individualError) {
+    logger.error(`Error processing migration ${migrationName}: ${individualError.message}`);
   }
-}
+};
 
+/**
+ * Script to run pending migrations with improved error handling and ordering.
+ */
 export const runMigrations = async (closeConnection = true): Promise<void> => {
   try {
     if (!AppDataSource.isInitialized) {
@@ -111,21 +59,75 @@ export const runMigrations = async (closeConnection = true): Promise<void> => {
       logger.info("Database connected successfully");
     }
 
-    await cleanMigrationsTable();
+    const queryRunner = AppDataSource.createQueryRunner();
+
+    try {
+      const tableExists = await queryRunner.hasTable("migrations");
+
+      if (tableExists) {
+        const nullNames = await queryRunner.query(
+          `SELECT id FROM migrations WHERE name IS NULL`
+        );
+        if (nullNames.length > 0) {
+          logger.info(`Found ${nullNames.length} migrations with null names, removing them`);
+          await queryRunner.query(`DELETE FROM migrations WHERE name IS NULL`);
+        }
+
+        const duplicates = await queryRunner.query(`
+          SELECT name, COUNT(*) 
+          FROM migrations 
+          GROUP BY name 
+          HAVING COUNT(*) > 1
+        `);
+        if (duplicates.length > 0) {
+          logger.info(`Found ${duplicates.length} duplicate migrations, keeping only the latest`);
+          for (const dup of duplicates) {
+            await queryRunner.query(`
+              DELETE FROM migrations 
+              WHERE name = $1 
+              AND id NOT IN (
+                SELECT id FROM migrations 
+                WHERE name = $1 
+                ORDER BY timestamp DESC 
+                LIMIT 1
+              )
+            `, [dup.name]);
+          }
+        }
+      }
+    } catch (fixError) {
+      logger.error("Error fixing migrations table:", fixError);
+    } finally {
+      await queryRunner.release();
+    }
 
     const pendingMigrations = await AppDataSource.showMigrations();
-    if (!pendingMigrations) return;
+    if (pendingMigrations) {
+      logger.info("Running pending migrations...");
+      try {
+        await AppDataSource.runMigrations({ transaction: "each" });
+        logger.info("Migrations completed successfully");
+      } catch (migrationError) {
+        logger.error(`Error running migrations: ${migrationError.message}`);
+        const migrations = await AppDataSource.migrations;
+        const sortedMigrations = migrations.sort((a, b) => {
+          const aTimestamp = extractTimestamp(a.name) || 0;
+          const bTimestamp = extractTimestamp(b.name) || 0;
+          return aTimestamp - bTimestamp;
+        });
 
-    logger.info("Running pending migrations...");
-    try {
-      await AppDataSource.runMigrations({ transaction: "each" });
-      logger.info("Migrations completed successfully");
-    } catch (migrationError: any) {
-      logger.error(`Error running migrations: ${migrationError.message}`);
-      const migrations = await AppDataSource.migrations;
-      await runMigrationsIndividually(migrations);
+        logger.info(`Attempting to run ${sortedMigrations.length} migrations individually...`);
+        for (const migration of sortedMigrations) {
+          const queryRunner = AppDataSource.createQueryRunner();
+          await queryRunner.connect();
+          await runIndividualMigration(migration, queryRunner);
+          await queryRunner.release();
+        }
+      }
+    } else {
+      logger.info("No pending migrations to run");
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error(`Error in migration process: ${error.message}`);
     throw error;
   } finally {
@@ -135,6 +137,7 @@ export const runMigrations = async (closeConnection = true): Promise<void> => {
   }
 };
 
+// Run the script if called directly
 if (require.main === module) {
   runMigrations(true)
     .then(() => {

@@ -87,9 +87,6 @@ const ApprovalWorkflowModal: React.FC<ApprovalWorkflowModalProps> = ({
                     {workflowCategory && workflowData.minDays && workflowData.maxDays ? ' | ' : ''}
                     {workflowData.minDays !== undefined && workflowData.maxDays !== undefined ? 
                       `Duration: ${workflowData.minDays}-${workflowData.maxDays} days` : ''}
-                    {workflowData.requesterRole && (
-                      <span> | Requester Role: {workflowData.requesterRole.name}</span>
-                    )}
                   </p>
                 </div>
                 <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">

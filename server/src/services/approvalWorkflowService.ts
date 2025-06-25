@@ -73,7 +73,6 @@ export const getAllApprovalWorkflows = async (
       order: {
         minDays: "ASC",
       },
-      relations: ["requesterRole", "category"] // Include requesterRole relation
     });
   } catch (error) {
     logger.error(`Error in getAllApprovalWorkflows service: ${error}`);
@@ -94,7 +93,6 @@ export const getApprovalWorkflowById = async (
     // Find approval workflow by ID
     const approvalWorkflow = await approvalWorkflowRepository.findOne({
       where: { id: workflowId },
-      relations: ["requesterRole", "category"] // Include requesterRole relation
     });
 
     if (!approvalWorkflow) {
@@ -214,29 +212,19 @@ export const deleteApprovalWorkflow = async (
  * Get approval workflow for leave duration
  */
 export const getApprovalWorkflowForDuration = async (
-  days: number,
-  requesterRoleId?: string
+  days: number
 ): Promise<ApprovalWorkflow> => {
   try {
     const approvalWorkflowRepository =
       AppDataSource.getRepository(ApprovalWorkflow);
 
-    // Build the query conditions
-    const whereConditions: any = {
-      minDays: TypeORMLessThanOrEqual(days),
-      maxDays: TypeORMMoreThanOrEqual(days),
-      isActive: true,
-    };
-    
-    // Add requesterRoleId to the query if provided
-    if (requesterRoleId) {
-      whereConditions.requesterRoleId = requesterRoleId;
-    }
-
-    // Find approval workflow for the number of days and optional requester role
+    // Find approval workflow for the number of days
     const approvalWorkflow = await approvalWorkflowRepository.findOne({
-      where: whereConditions,
-      relations: ["requesterRole", "category"] // Include requesterRole relation
+      where: {
+        minDays: TypeORMLessThanOrEqual(days),
+        maxDays: TypeORMMoreThanOrEqual(days),
+        isActive: true,
+      },
     });
 
     if (!approvalWorkflow) {

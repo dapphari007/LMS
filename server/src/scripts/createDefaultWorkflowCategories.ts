@@ -105,7 +105,7 @@ export const createDefaultWorkflowCategories = async (
 
     if (existingCategories.length > 0) {
       logger.info(
-        `Found ${existingCategories.length} existing workflow categories. Checking for missing categories...`
+        `Found ${existingCategories.length} existing workflow categories.`
       );
 
       // Create only the missing categories
@@ -176,9 +176,6 @@ export const createDefaultWorkflowCategories = async (
         }
       }
     }
-
-    logger.info("Default workflow categories setup completed");
-
     // Close the database connection if requested
     if (closeConnection && AppDataSource.isInitialized) {
       await AppDataSource.destroy();

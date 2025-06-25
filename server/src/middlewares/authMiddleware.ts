@@ -49,6 +49,36 @@ export const superAdminAuth = {
 };
 
 /**
+ * Authentication strategy for managers, HR, and team leads
+ */
+export const managerHrAuth = {
+  name: 'manager_hr',
+  scheme: 'jwt',
+  options: {
+    key: process.env.JWT_SECRET || 'your_jwt_secret_key',
+    validate: async (decoded: any, request: Request, h: ResponseToolkit) => {
+      try {
+        // Check if user is a manager, HR, team lead, or super admin
+        if (
+          decoded.role !== UserRole.MANAGER &&
+          decoded.role !== UserRole.HR &&
+          decoded.role !== UserRole.TEAM_LEAD &&
+          decoded.role !== UserRole.SUPER_ADMIN
+        ) {
+          return { isValid: false };
+        }
+        
+        return { isValid: true, credentials: decoded };
+      } catch (error) {
+        logger.error(`Error validating token: ${error}`);
+        return { isValid: false };
+      }
+    },
+    verifyOptions: { algorithms: ['HS256'] },
+  },
+};
+
+/**
  * Authentication strategy for managers only
  */
 export const managerAuth = {

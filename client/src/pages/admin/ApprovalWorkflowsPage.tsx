@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -8,7 +8,6 @@ import {
   ApprovalWorkflow,
   initializeDefaultWorkflows,
 } from "../../services/approvalWorkflowService";
-import { getActiveRoles, Role } from "../../services/roleService";
 import { useAuth } from "../../context/AuthContext";
 import Alert from "../../components/ui/Alert";
 
@@ -28,9 +27,6 @@ export default function ApprovalWorkflowsPage({
   const [workflowToToggle, setWorkflowToToggle] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [selectedRoleId, setSelectedRoleId] = useState<string>("all");
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [filteredWorkflows, setFilteredWorkflows] = useState<ApprovalWorkflow[]>([]);
   
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'super_admin';
@@ -109,58 +105,6 @@ export default function ApprovalWorkflowsPage({
     }
   };
 
-  // Fetch roles for the filter dropdown
-  useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        const fetchedRoles = await getActiveRoles();
-        setRoles(fetchedRoles);
-      } catch (error) {
-        console.error("Error fetching roles:", error);
-        setErrorMessage("Failed to load roles for filtering");
-      }
-    };
-    
-    fetchRoles();
-  }, []);
-
-  // Filter workflows based on selected role
-  useEffect(() => {
-    if (!workflows) return;
-    
-    if (selectedRoleId === "all") {
-      setFilteredWorkflows(workflows);
-    } else {
-      const filtered = workflows.filter((workflow: ApprovalWorkflow) => {
-        // Check if workflow is specifically for this role
-        if (workflow.requesterRoleId === selectedRoleId) {
-          return true;
-        }
-        
-        // If the workflow has no requester role specified, it applies to all roles
-        if (!workflow.requesterRoleId && !workflow.requesterRole) {
-          // Check if any approval level includes this role
-          return workflow.approvalLevels?.some(level => 
-            level.roleIds?.includes(selectedRoleId) || 
-            (level.roles?.some(role => {
-              // If the role name matches a system role that corresponds to the selected role ID
-              const matchingRole = roles.find(r => r.id === selectedRoleId);
-              return matchingRole && role.toLowerCase() === matchingRole.name.toLowerCase();
-            }))
-          );
-        }
-        
-        return false;
-      });
-      
-      setFilteredWorkflows(filtered);
-    }
-  }, [workflows, selectedRoleId, roles]);
-
-  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedRoleId(e.target.value);
-  };
-
   if (isLoading)
     return (
       <div className="flex justify-center items-center h-64">Loading...</div>
@@ -232,45 +176,6 @@ export default function ApprovalWorkflowsPage({
           default workflows available in the system.
         </p>
       </div>
-      
-      {/* Role filter dropdown */}
-      <div className="mb-6">
-        <div className="flex items-center space-x-4">
-          <div className="w-64">
-            <label htmlFor="roleFilter" className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Role
-            </label>
-            <select
-              id="roleFilter"
-              value={selectedRoleId}
-              onChange={handleRoleChange}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            >
-              <option value="all">All Roles</option>
-              {roles.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          {selectedRoleId !== "all" && (
-            <button
-              onClick={() => setSelectedRoleId("all")}
-              className="mt-6 text-sm text-blue-600 hover:text-blue-800"
-            >
-              Clear Filter
-            </button>
-          )}
-        </div>
-        
-        {selectedRoleId !== "all" && filteredWorkflows.length === 0 && (
-          <p className="mt-2 text-sm text-amber-600">
-            No workflows found for the selected role. Try selecting a different role or view all workflows.
-          </p>
-        )}
-      </div>
 
       {workflows.length === 0 ? (
         <div className="bg-gray-50 p-6 rounded-lg text-center">
@@ -293,13 +198,12 @@ export default function ApprovalWorkflowsPage({
                 <th className="py-3 px-4 text-left">Days Range</th>
                 <th className="py-3 px-4 text-left">Approval Steps Count</th>
                 <th className="py-3 px-4 text-left">Status</th>
-                <th className="py-3 px-4 text-left">Requester Role</th>
                 <th className="py-3 px-4 text-left">Created At</th>
                 <th className="py-3 px-4 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredWorkflows.map((workflow: ApprovalWorkflow) => (
+              {workflows.map((workflow: ApprovalWorkflow) => (
                 <tr
                   key={workflow.id}
                   className="border-t border-gray-200 hover:bg-gray-50"
@@ -321,15 +225,6 @@ export default function ApprovalWorkflowsPage({
                     }`}>
                       {workflow.isActive ? 'Active' : 'Inactive'}
                     </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    {workflow.requesterRole ? (
-                      <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                        {workflow.requesterRole.name}
-                      </span>
-                    ) : (
-                      <span className="text-gray-500 text-sm">All Roles</span>
-                    )}
                   </td>
                   <td className="py-3 px-4">
                     {new Date(workflow.createdAt).toLocaleDateString()}

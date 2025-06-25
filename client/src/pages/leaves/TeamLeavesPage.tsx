@@ -57,18 +57,6 @@ const TeamLeavesPage: React.FC = () => {
       return false;
     }
     
-    // Check if the current user has already approved this request
-    if (request.metadata && request.metadata.approvalHistory) {
-      const hasAlreadyApproved = request.metadata.approvalHistory.some(
-        (approval: any) => approval.approverId === user?.id
-      );
-      
-      if (hasAlreadyApproved) {
-        console.log('User has already approved this request');
-        return false;
-      }
-    }
-    
     // Get the current user's approval level
     const userApprovalLevel = getApprovalLevel();
     
@@ -224,7 +212,7 @@ const TeamLeavesPage: React.FC = () => {
     }
     
     // Default to the utility function for any other cases
-    return canApproveRequestUtil(userRole, hasCustomAdminRole, request.status, request.metadata, user?.id);
+    return canApproveRequestUtil(userRole, hasCustomAdminRole, request.status, request.metadata);
   };
 
   // Check if user has permission to view team leaves

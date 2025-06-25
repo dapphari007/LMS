@@ -16,7 +16,6 @@ import {
   MoreThanOrEqual as TypeORMMoreThanOrEqual,
   Between as TypeORMBetween,
   In as TypeORMIn,
-  IsNull as TypeORMIsNull,
 } from "typeorm";
 
 /**
@@ -519,8 +518,7 @@ export const cancelLeaveRequest = async (
  * Get approval workflow for leave request
  */
 export const getApprovalWorkflow = async (
-  numberOfDays: number,
-  requesterRoleId?: string
+  numberOfDays: number
 ): Promise<ApprovalWorkflow> => {
   try {
     // Ensure database connection is established before proceeding
@@ -529,31 +527,14 @@ export const getApprovalWorkflow = async (
     const approvalWorkflowRepository =
       AppDataSource.getRepository(ApprovalWorkflow);
 
-    let approvalWorkflow: ApprovalWorkflow | null = null;
-    
-    // First try to find a role-specific workflow if requesterRoleId is provided
-    if (requesterRoleId) {
-      approvalWorkflow = await approvalWorkflowRepository.findOne({
-        where: {
-          minDays: TypeORMLessThanOrEqual(numberOfDays),
-          maxDays: TypeORMMoreThanOrEqual(numberOfDays),
-          isActive: true,
-          requesterRoleId: requesterRoleId
-        },
-      });
-    }
-    
-    // If no role-specific workflow found, fall back to the default workflow (no requesterRoleId)
-    if (!approvalWorkflow) {
-      approvalWorkflow = await approvalWorkflowRepository.findOne({
-        where: {
-          minDays: TypeORMLessThanOrEqual(numberOfDays),
-          maxDays: TypeORMMoreThanOrEqual(numberOfDays),
-          isActive: true,
-          requesterRoleId: TypeORMIsNull()
-        },
-      });
-    }
+    // Find approval workflow for the number of days
+    const approvalWorkflow = await approvalWorkflowRepository.findOne({
+      where: {
+        minDays: TypeORMLessThanOrEqual(numberOfDays),
+        maxDays: TypeORMMoreThanOrEqual(numberOfDays),
+        isActive: true,
+      },
+    });
 
     if (!approvalWorkflow) {
       throw new Error("No approval workflow found for this leave duration");

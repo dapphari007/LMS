@@ -2,25 +2,59 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ApprovalWorkflow } from '../../services/approvalWorkflowService';
 import { getApprovalWorkflowForDuration } from '../../services/approvalWorkflowService';
-import { getUserApprovers, getHRUsers } from '../../services/userService';
+import { getUserApprovers } from '../../services/userService';
 import Card from '../ui/Card';
 import { useAuth } from '../../context/AuthContext';
 
-// Define the ApprovalLevel type to avoid repeating the type definition
-interface ApprovalLevel {
-  level: number;
-  roles: string[];
-  approverType?: string;
-  roleIds?: string[];
-  fallbackRoles?: string[];
-  departmentSpecific?: boolean;
-  required?: boolean;
-}
+// Mock data for development/preview until API endpoints are ready
+const MOCK_WORKFLOW: ApprovalWorkflow = {
+  id: 'mock-workflow-1',
+  name: 'Medium Leave (3-5 days)',
+  minDays: 3,
+  maxDays: 5,
+  approvalLevels: [
+    {
+      level: 1,
+      roles: ['team_lead'],
+      approverType: 'teamLead',
+      fallbackRoles: ['team_lead']
+    },
+    {
+      level: 2,
+      roles: ['manager'],
+      approverType: 'manager',
+      fallbackRoles: ['manager']
+    }
+  ],
+  isActive: true,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
+};
+
+const MOCK_APPROVERS = [
+  {
+    id: 'mock-approver-1',
+    firstName: 'John',
+    lastName: 'Smith',
+    email: 'john.smith@example.com',
+    role: 'team_lead',
+    level: 1,
+    isFallback: false
+  },
+  {
+    id: 'mock-approver-2',
+    firstName: 'Jane',
+    lastName: 'Doe',
+    email: 'jane.doe@example.com',
+    role: 'manager',
+    level: 2,
+    isFallback: false
+  }
+];
 
 interface ApprovalWorkflowPreviewProps {
   duration: number;
   isLoading?: boolean;
-  workflow?: ApprovalWorkflow | null; // Add workflow prop
 }
 
 interface Approver {
@@ -35,8 +69,7 @@ interface Approver {
 
 const ApprovalWorkflowPreview: React.FC<ApprovalWorkflowPreviewProps> = ({ 
   duration, 
-  isLoading,
-  workflow // Accept the workflow prop
+  isLoading 
 }) => {
   const [approvers, setApprovers] = useState<Approver[]>([]);
   const { user } = useAuth(); // Get the current user
@@ -45,81 +78,21 @@ const ApprovalWorkflowPreview: React.FC<ApprovalWorkflowPreviewProps> = ({
   const isManager = userRole === 'manager';
   const isHR = userRole === 'hr';
   
-  // Use the provided workflow or fetch one if not provided
+  // Fetch the approval workflow based on the duration
   const { 
     data: workflowData,
     isLoading: isLoadingWorkflow,
     error: workflowError
   } = useQuery({
-    queryKey: ['approvalWorkflow', duration, user?.roleId],
-    queryFn: () => {
-      // If a workflow is provided, use it
-      if (workflow) {
-        console.log('Using provided workflow:', workflow);
-        
-        // Log the approval levels for debugging
-        if (workflow?.approvalLevels) {
-          console.log('Workflow approval levels:', workflow.approvalLevels.map((level: ApprovalLevel) => ({
-            level: level.level,
-            roles: level.roles,
-            approverType: level.approverType
-          })));
-        }
-        
-        return workflow;
-      }
-      
-      // Otherwise fetch the workflow based on duration and user role
-      return getApprovalWorkflowForDuration(duration, user?.roleId)
-        .then(fetchedWorkflow => {
-          if (fetchedWorkflow?.approvalLevels) {
-            console.log('Fetched workflow approval levels:', fetchedWorkflow.approvalLevels.map((level: ApprovalLevel) => ({
-              level: level.level,
-              roles: level.roles,
-              approverType: level.approverType
-            })));
-          }
-          return fetchedWorkflow;
-        })
-        .catch(error => {
-          console.error('Error fetching workflow:', error);
-          // Return null instead of mock data
-          return null;
-        });
-    },
-    enabled: (!!duration && duration > 0) && !workflow, // Only fetch if no workflow is provided
+    queryKey: ['approvalWorkflow', duration],
+    queryFn: () => getApprovalWorkflowForDuration(duration)
+      .catch(error => {
+        console.error('Error fetching workflow:', error);
+        // Return mock data for development/preview
+        return MOCK_WORKFLOW;
+      }),
+    enabled: !!duration && duration > 0,
   });
-  
-  // Determine which workflow to use - either the provided one or the fetched one
-  const effectiveWorkflow = workflow || workflowData;
-  
-  // Check if this is a team lead workflow based on the name or other properties
-  const isTeamLeadWorkflow = effectiveWorkflow?.name?.toLowerCase().includes('team lead') || 
-                            (isTeamLead && effectiveWorkflow?.requesterRole?.name === 'team_lead');
-  
-  // Log the effective workflow for debugging
-  useEffect(() => {
-    if (effectiveWorkflow) {
-      console.log('Effective workflow being used:', {
-        id: effectiveWorkflow.id,
-        name: effectiveWorkflow.name,
-        minDays: effectiveWorkflow.minDays,
-        maxDays: effectiveWorkflow.maxDays,
-        fullObject: effectiveWorkflow // Log the full object for inspection
-      });
-      
-      if (effectiveWorkflow.approvalLevels) {
-        console.log('Approval levels in effective workflow:', 
-          effectiveWorkflow.approvalLevels.map((level: ApprovalLevel) => ({
-            level: level.level,
-            roles: level.roles,
-            approverType: level.approverType,
-            fullLevel: level // Log the full level object for inspection
-          }))
-        );
-      }
-    }
-  }, [effectiveWorkflow]);
   
   // Fetch the user's approvers based on the workflow
   const {
@@ -127,107 +100,96 @@ const ApprovalWorkflowPreview: React.FC<ApprovalWorkflowPreviewProps> = ({
     isLoading: isLoadingApprovers,
     error: approversError
   } = useQuery({
-    queryKey: ['userApprovers', effectiveWorkflow?.id, userRole],
-    queryFn: () => getUserApprovers(effectiveWorkflow?.id)
+    queryKey: ['userApprovers', workflowData?.id, userRole],
+    queryFn: () => getUserApprovers()
       .catch(error => {
         console.error('Error fetching approvers:', error);
-        // Return null instead of mock data
-        return null;
+        // Return mock data for development/preview
+        return { approvers: MOCK_APPROVERS };
       }),
-    enabled: !!effectiveWorkflow?.id,
-  });
-  
-  // Fetch HR users for level 2 if needed
-  const {
-    data: hrUsersData,
-    isLoading: isLoadingHRUsers
-  } = useQuery({
-    queryKey: ['hrUsers'],
-    queryFn: () => getHRUsers(),
-    enabled: (isTeamLead || isTeamLeadWorkflow) && !!effectiveWorkflow?.id,
+    enabled: !!workflowData?.id,
   });
   
   // Process approvers data when it's available
   useEffect(() => {
-    if ((approversData || hrUsersData) && effectiveWorkflow) {
+    if (approversData && workflowData) {
       try {
-        // Start with approvers from the API if available
-        const mappedApprovers = approversData ? approversData.approvers.map((approver: any) => ({
+        // Map approvers to levels based on the workflow
+        const mappedApprovers = approversData.approvers.map((approver: any) => ({
           ...approver,
           level: approver.level || 0,
-        })) : [];
+        }));
         
         // Sort by level
         mappedApprovers.sort((a: Approver, b: Approver) => a.level - b.level);
         
-        // Log the approvers for debugging
-        console.log('Approvers from API:', mappedApprovers);
-        console.log('HR Users from API:', hrUsersData);
-        console.log('Workflow approval levels:', effectiveWorkflow.approvalLevels);
-        
-        // For team leads with 2-day leaves, we need to ensure both levels have approvers
-        if (isTeamLead || isTeamLeadWorkflow) {
-          console.log('Team lead workflow detected, checking for missing approvers');
-          
-          // Check if we have approvers for both levels
-          const level1Approvers = mappedApprovers.filter(a => a.level === 1);
-          const level2Approvers = mappedApprovers.filter(a => a.level === 2);
-          
-          console.log('Level 1 approvers:', level1Approvers);
-          console.log('Level 2 approvers:', level2Approvers);
-          
-          // If we're missing HR approvers, we need to add an HR user
-          if (level2Approvers.length === 0 && hrUsersData && hrUsersData.length > 0) {
-            console.log('No HR approvers found, adding HR user from list');
-            
-            // Use the first HR user from the list
-            const hrUser = hrUsersData[0];
-            const hrApprover: Approver = {
-              id: hrUser.id || 'hr-user',
-              firstName: hrUser.firstName || 'HR',
-              lastName: hrUser.lastName || 'User',
-              email: hrUser.email || 'hr@example.com',
-              role: 'hr',
-              level: 2
-            };
-            
-            mappedApprovers.push(hrApprover);
-            console.log('Added HR approver:', hrApprover);
-          } 
-          // If no HR users are available, add a placeholder
-          else if (level2Approvers.length === 0) {
-            console.log('No HR approvers or HR users found, adding placeholder');
-            
-            const hrApprover: Approver = {
-              id: 'hr-placeholder',
-              firstName: 'Sarah',
-              lastName: 'Johnson',
-              email: 'hr@example.com',
-              role: 'hr',
-              level: 2
-            };
-            
-            mappedApprovers.push(hrApprover);
-            console.log('Added placeholder HR approver:', hrApprover);
-          }
+        // For Team Leads, Managers, and HR, we need to adjust the display to show the correct approval path
+        if (isTeamLead) {
+          console.log('User is a Team Lead, adjusting approval path display');
+          // Filter out any Team Lead approvers (they shouldn't approve their own requests)
+          const filteredApprovers = mappedApprovers.filter(
+            approver => approver.role !== 'team_lead'
+          );
+          setApprovers(filteredApprovers);
+        } else if (isManager) {
+          console.log('User is a Manager, adjusting approval path display');
+          // Filter out any Manager approvers (they shouldn't approve their own requests)
+          const filteredApprovers = mappedApprovers.filter(
+            approver => approver.role !== 'manager'
+          );
+          setApprovers(filteredApprovers);
+        } else if (isHR) {
+          console.log('User is HR, adjusting approval path display');
+          // Filter out any HR approvers (they shouldn't approve their own requests)
+          const filteredApprovers = mappedApprovers.filter(
+            approver => approver.role !== 'hr'
+          );
+          setApprovers(filteredApprovers);
+        } else {
+          setApprovers(mappedApprovers);
         }
-        
-        // We'll set all approvers and handle filtering in the render logic
-        setApprovers(mappedApprovers);
       } catch (error) {
         console.error('Error processing approvers data:', error);
-        // Set empty approvers array
-        setApprovers([]);
+        // Use mock data as fallback
+        if (isTeamLead) {
+          // For Team Leads, filter out Team Lead approvers from mock data
+          const filteredMockApprovers = MOCK_APPROVERS.filter(
+            approver => approver.role !== 'team_lead'
+          );
+          setApprovers(filteredMockApprovers);
+        } else {
+          setApprovers(MOCK_APPROVERS);
+        }
       }
-    } else if (effectiveWorkflow && !approversData && !hrUsersData) {
-      // If we have workflow but no approvers, set empty approvers array
-      setApprovers([]);
+    } else if (workflowData && !approversData) {
+      // If we have workflow but no approvers, use mock approvers
+      if (isTeamLead) {
+        // For Team Leads, filter out Team Lead approvers from mock data
+        const filteredMockApprovers = MOCK_APPROVERS.filter(
+          approver => approver.role !== 'team_lead'
+        );
+        setApprovers(filteredMockApprovers);
+      } else if (isManager) {
+        // For Managers, filter out Manager approvers from mock data
+        const filteredMockApprovers = MOCK_APPROVERS.filter(
+          approver => approver.role !== 'manager'
+        );
+        setApprovers(filteredMockApprovers);
+      } else if (isHR) {
+        // For HR, filter out HR approvers from mock data
+        const filteredMockApprovers = MOCK_APPROVERS.filter(
+          approver => approver.role !== 'hr'
+        );
+        setApprovers(filteredMockApprovers);
+      } else {
+        setApprovers(MOCK_APPROVERS);
+      }
     }
-  }, [approversData, hrUsersData, effectiveWorkflow, isTeamLead, isTeamLeadWorkflow]);
+  }, [approversData, workflowData, isTeamLead]);
   
-  if (isLoading || isLoadingWorkflow || isLoadingApprovers || isLoadingHRUsers) {
+  if (isLoading || isLoadingWorkflow || isLoadingApprovers) {
     return (
-      <Card className="mt-4 p-4 border-l-4 border-blue-300">
+      <Card className="mt-4 p-4">
         <div className="flex items-center justify-center space-x-2">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700"></div>
           <span className="text-sm text-gray-600">Loading approval workflow...</span>
@@ -240,147 +202,164 @@ const ApprovalWorkflowPreview: React.FC<ApprovalWorkflowPreviewProps> = ({
     return null;
   }
   
-  // If there's an error or no workflow data, show the "not found" message
-  if ((workflowError && !workflowData) || (!effectiveWorkflow && !isLoadingWorkflow) || (approversError && !approversData)) {
-    console.warn('No approval workflow found or error occurred:', { 
-      workflowError, 
-      approversError,
-      userRole,
-      duration,
-      effectiveWorkflow: !!effectiveWorkflow
-    });
+  // We're now handling errors by returning mock data, so this block will rarely be triggered
+  // But we'll keep it as a fallback
+  if ((workflowError && !workflowData) || (approversError && !approversData)) {
+    console.warn('Using fallback UI for approval workflow due to errors:', { workflowError, approversError });
     return (
-      <Card className="mt-4 p-4 border-l-4 border-amber-500">
+      <Card className="mt-4 p-4">
         <div className="text-sm text-amber-600">
-          <p>Approval workflow not found. Please contact administrator.</p>
-          <p className="text-xs mt-1">No workflow defined for {userRole} role with {duration} days duration.</p>
+          <p>Showing preview of approval workflow (development mode).</p>
+          <p className="text-xs text-gray-500 mt-1">Note: This is sample data. The actual approval workflow will be shown in production.</p>
         </div>
       </Card>
     );
   }
   
-  // Use the effective workflow directly
+  // If we don't have workflow data and we're not loading, use mock data
+  if (!workflowData && !isLoadingWorkflow) {
+    console.log('No workflow data available, using mock data');
+    // This should rarely happen since we're returning mock data in the query error handler
+    return (
+      <Card className="mt-4 p-4">
+        <h3 className="text-md font-medium mb-2">Approval Workflow Preview</h3>
+        <p className="text-sm text-gray-600 mb-3">
+          Based on your leave duration ({duration} days), your request will follow this approval path:
+        </p>
+        
+        <div className="space-y-3">
+          {MOCK_WORKFLOW.approvalLevels.map((level) => (
+            <div key={`level-${level.level}`} className="flex items-start">
+              <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 mr-3">
+                <span className="text-xs font-medium">{level.level}</span>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm">
+                  Level {level.level}: {level.approverType ? level.approverType.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()) : 'Approver'}
+                </p>
+                
+                <div className="mt-1">
+                  {MOCK_APPROVERS.filter(a => a.level === level.level).map((approver) => (
+                    <div key={`approver-${approver.id}`} className="text-sm text-gray-700 flex items-center">
+                      <span className={approver.isFallback ? 'text-orange-600' : ''}>
+                        {approver.firstName} {approver.lastName}
+                      </span>
+                      {approver.isFallback && (
+                        <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded">
+                          Fallback
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-4 italic">Note: This is preview data. The actual approval workflow will be shown when the system is fully configured.</p>
+      </Card>
+    );
+  }
+  
+  // Determine if we're using mock data
+  const isMockData = !workflowData || workflowData === MOCK_WORKFLOW;
+  const workflowToUse = workflowData || MOCK_WORKFLOW;
+  
   return (
-    <Card className="mt-4 p-4 border-l-4 border-blue-500">
-      <h3 className="text-md font-medium mb-2 text-blue-700">
+    <Card className="mt-4 p-4">
+      <h3 className="text-md font-medium mb-2">
         Approval Workflow
+        {isMockData && <span className="text-xs text-amber-600 ml-2">(Preview)</span>}
       </h3>
       <p className="text-sm text-gray-600 mb-3">
         Based on your leave duration ({duration} days), your request will follow this approval path:
       </p>
       
       <div className="space-y-3">
-        {effectiveWorkflow.approvalLevels && effectiveWorkflow.approvalLevels.length > 0 ? (
-          // Always show all approval levels from the workflow
-          effectiveWorkflow.approvalLevels.map((level: ApprovalLevel) => {
-            // Find approvers for this level
-            const levelApprovers = approvers.filter(a => a.level === level.level);
-            
-            // For team leads, managers, and HR, we need to filter out their own role from approvers
-            let filteredApprovers = levelApprovers;
-            if (isTeamLead && level.roles?.includes('team_lead')) {
-              filteredApprovers = [];
-            } else if (isManager && level.roles?.includes('manager')) {
-              filteredApprovers = [];
-            } else if (isHR && level.roles?.includes('hr')) {
-              filteredApprovers = [];
-            }
-            
-            // Get the approver type display name based on the level number
-            // For team leads with 2-day leaves, we know level 1 is Manager and level 2 is HR
-            let approverTypeDisplay = 'Approver';
-            
-            // Log the level details for debugging
-            console.log(`Processing level ${level.level}:`, {
-              level: level.level,
-              roles: level.roles,
-              approverType: level.approverType,
-              roleIds: level.roleIds,
-              fullLevel: level // Log the full level object
-            });
-            
-            // Direct mapping based on level number for team leads
-            if (isTeamLead || isTeamLeadWorkflow) {
-              if (level.level === 1) {
-                approverTypeDisplay = 'Manager';
-                console.log(`Setting level ${level.level} to Manager for team lead`);
-              } else if (level.level === 2) {
-                approverTypeDisplay = 'HR';
-                console.log(`Setting level ${level.level} to HR for team lead`);
-              }
-            } 
-            // For other roles, try to determine from the roles array
-            else if (level.roles && level.roles.length > 0) {
-              // Check for specific roles we want to display
-              if (level.roles.includes('manager')) {
-                approverTypeDisplay = 'Manager';
-              } else if (level.roles.includes('hr')) {
-                approverTypeDisplay = 'HR';
-              } else if (level.roles.includes('team_lead')) {
-                approverTypeDisplay = 'Team Lead';
-              } else if (level.roles.includes('super_admin')) {
-                approverTypeDisplay = 'Super Admin';
-              }
-              
-              console.log(`Level ${level.level} has roles: ${level.roles.join(', ')}, display: ${approverTypeDisplay}`);
-            }
-            
-            // If approverType is specified, use that instead
-            if (level.approverType) {
-              approverTypeDisplay = level.approverType.charAt(0).toUpperCase() + 
-                level.approverType.slice(1).replace(/([A-Z])/g, ' $1');
-              console.log(`Level ${level.level} has approverType: ${level.approverType}, display: ${approverTypeDisplay}`);
-            }
-            
-            return (
-              <div key={`level-${level.level}`} className="flex items-start">
+        {workflowToUse.approvalLevels && workflowToUse.approvalLevels.length > 0 ? (
+          // If user is a Team Lead, Manager, or HR, we need to adjust the display
+          (isTeamLead || isManager || isHR) ? (
+            // For Team Leads, Managers, and HR, show their approvers with adjusted levels
+            approvers.map((approver, index) => (
+              <div key={`level-${index+1}`} className="flex items-start">
                 <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 mr-3">
-                  <span className="text-xs font-medium">{level.level}</span>
+                  <span className="text-xs font-medium">{index+1}</span>
                 </div>
                 <div className="flex-1">
                   <p className="font-medium text-sm">
-                    Level {level.level}: {
-                      // Force the correct display for team leads based on level
-                      isTeamLead && level.level === 1 ? 'Manager' :
-                      isTeamLead && level.level === 2 ? 'HR' :
-                      approverTypeDisplay
-                    }
+                    Level {index+1}: {approver.role === 'manager' ? 'Manager' : 
+                                     approver.role === 'hr' ? 'HR' : 
+                                     approver.role === 'super_admin' ? 'Super Admin' : 'Approver'}
                   </p>
                   
-                  {filteredApprovers.length > 0 ? (
-                    <div className="mt-1">
-                      {filteredApprovers.map((approver) => (
-                        <div key={`approver-${approver.id}`} className="text-sm text-gray-700 flex items-center">
-                          <span className={approver.isFallback ? 'text-orange-600' : ''}>
-                            {approver.firstName} {approver.lastName}
-                          </span>
-                          {approver.isFallback && (
-                            <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded">
-                              Fallback
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                  <div className="mt-1">
+                    <div className="text-sm text-gray-700 flex items-center">
+                      <span className={approver.isFallback ? 'text-orange-600' : ''}>
+                        {approver.firstName} {approver.lastName}
+                      </span>
+                      {approver.isFallback && (
+                        <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded">
+                          Fallback
+                        </span>
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      {(isTeamLead && level.roles?.includes('team_lead')) || 
-                       (isManager && level.roles?.includes('manager')) || 
-                       (isHR && level.roles?.includes('hr')) 
-                        ? "This level is skipped for your role"
-                        : "Approver will be assigned based on your department and role hierarchy"}
-                    </p>
-                  )}
+                  </div>
                 </div>
               </div>
-            );
-          })
+            ))
+          ) : (
+            // For regular employees, show the standard workflow
+            workflowToUse.approvalLevels.map((level: any) => {
+              // Find approvers for this level
+              const levelApprovers = approvers.filter(a => a.level === level.level);
+              
+              return (
+                <div key={`level-${level.level}`} className="flex items-start">
+                  <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 mr-3">
+                    <span className="text-xs font-medium">{level.level}</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">
+                      Level {level.level}: {level.approverType ? level.approverType.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase()) : 'Approver'}
+                    </p>
+                    
+                    {levelApprovers.length > 0 ? (
+                      <div className="mt-1">
+                        {levelApprovers.map((approver) => (
+                          <div key={`approver-${approver.id}`} className="text-sm text-gray-700 flex items-center">
+                            <span className={approver.isFallback ? 'text-orange-600' : ''}>
+                              {approver.firstName} {approver.lastName}
+                            </span>
+                            {approver.isFallback && (
+                              <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded">
+                                Fallback
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">
+                        Approver will be assigned based on your department and role hierarchy
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )
         ) : (
           <p className="text-sm text-gray-500 italic">
             No approval levels defined for this leave duration.
           </p>
         )}
       </div>
+      
+      {isMockData && (
+        <p className="text-xs text-gray-500 mt-4 italic">
+          Note: This is preview data. The actual approval workflow will be shown when the system is fully configured.
+        </p>
+      )}
     </Card>
   );
 };

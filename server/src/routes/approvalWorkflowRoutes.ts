@@ -1,6 +1,5 @@
 import { ServerRoute } from "@hapi/hapi";
 import * as ApprovalWorkflowController from "../controllers/approvalWorkflowController";
-import Joi from "joi";
 
 const approvalWorkflowRoutes: ServerRoute[] = [
   {
@@ -18,7 +17,7 @@ const approvalWorkflowRoutes: ServerRoute[] = [
     path: "/api/approval-workflows",
     handler: ApprovalWorkflowController.getAllApprovalWorkflows,
     options: {
-      auth: { strategies: ["super_admin", "manager", "admin"] },
+      auth: { strategies: ["super_admin", "manager_hr", "admin"] },
       description: "Get all approval workflows",
       tags: ["api", "approval-workflows"],
     },
@@ -28,7 +27,7 @@ const approvalWorkflowRoutes: ServerRoute[] = [
     path: "/api/approval-workflows/{id}",
     handler: ApprovalWorkflowController.getApprovalWorkflowById,
     options: {
-      auth: { strategies: ["super_admin", "manager", "admin"] },
+      auth: { strategies: ["super_admin", "manager_hr", "admin"] },
       description: "Get approval workflow by ID",
       tags: ["api", "approval-workflows"],
     },
@@ -72,11 +71,6 @@ const approvalWorkflowRoutes: ServerRoute[] = [
       auth: "all_roles",
       description: "Get approval workflow for a specific leave duration",
       tags: ["api", "approval-workflows"],
-      validate: {
-        query: Joi.object({
-          requesterRoleId: Joi.string().uuid().allow(null, ''),
-        }).unknown(true),
-      },
     },
   },
 ];

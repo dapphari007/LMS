@@ -170,7 +170,7 @@ export const createApprovalWorkflow = async (
   h: ResponseToolkit
 ) => {
   try {
-    const { name, minDays, maxDays, approvalLevels, isActive, categoryId, requesterRoleId } =
+    const { name, minDays, maxDays, approvalLevels, isActive, categoryId } =
       request.payload as any;
 
     // Validate input
@@ -229,11 +229,6 @@ export const createApprovalWorkflow = async (
       }
 
       for (const role of level.roles) {
-        // Skip validation for user IDs (which might be UUIDs)
-        if (typeof role === 'string' && role.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-          continue; // It's a UUID, skip validation
-        }
-        
         // Check if the role matches any UserRole value (case-insensitive)
         const validRoles = Object.values(UserRole);
         const isValidRole = validRoles.some(validRole => 
@@ -247,37 +242,22 @@ export const createApprovalWorkflow = async (
       }
     }
 
-    // Check for overlapping workflows with the same requester role
+    // Check for overlapping workflows
     const approvalWorkflowRepository =
       AppDataSource.getRepository(ApprovalWorkflow);
-    
-    // Build the query based on whether requesterRoleId is provided
-    const whereConditions: any[] = [];
-    
-    if (requesterRoleId) {
-      // If requesterRoleId is provided, check for overlaps with the same role
-      whereConditions.push({
-        minDays: LessThanOrEqual(maxDays),
-        maxDays: MoreThanOrEqual(minDays),
-        requesterRoleId: requesterRoleId
-      });
-    } else {
-      // If no requesterRoleId, check for overlaps with workflows that don't have a role specified
-      whereConditions.push({
-        minDays: LessThanOrEqual(maxDays),
-        maxDays: MoreThanOrEqual(minDays),
-        requesterRoleId: null
-      });
-    }
-    
     const overlappingWorkflows = await approvalWorkflowRepository.find({
-      where: whereConditions,
+      where: [
+        {
+          minDays: LessThanOrEqual(maxDays),
+          maxDays: MoreThanOrEqual(minDays),
+        },
+      ],
     });
 
     if (overlappingWorkflows.length > 0) {
       return h
         .response({
-          message: "This workflow overlaps with an existing workflow for the same role",
+          message: "This workflow overlaps with an existing workflow",
         })
         .code(409);
     }
@@ -314,11 +294,6 @@ export const createApprovalWorkflow = async (
     // Set categoryId if provided
     if (categoryId) {
       approvalWorkflow.categoryId = categoryId;
-    }
-    
-    // Set requesterRoleId if provided
-    if (requesterRoleId) {
-      approvalWorkflow.requesterRoleId = requesterRoleId;
     }
 
     // Save approval workflow to database
@@ -368,7 +343,7 @@ export const getAllApprovalWorkflows = async (
       order: {
         minDays: "ASC",
       },
-      relations: ["category", "requesterRole"]
+      relations: ["category"]
     });
 
     return h
@@ -399,7 +374,7 @@ export const getApprovalWorkflowById = async (
       AppDataSource.getRepository(ApprovalWorkflow);
     const approvalWorkflow = await approvalWorkflowRepository.findOne({
       where: { id },
-      relations: ["category", "requesterRole"]
+      relations: ["category"]
     });
 
     if (!approvalWorkflow) {
@@ -427,7 +402,7 @@ export const updateApprovalWorkflow = async (
 ) => {
   try {
     const { id } = request.params;
-    const { name, minDays, maxDays, approvalLevels, isActive, categoryId, requesterRoleId } =
+    const { name, minDays, maxDays, approvalLevels, isActive, categoryId } =
       request.payload as any;
 
     // Get approval workflow
@@ -465,9 +440,9 @@ export const updateApprovalWorkflow = async (
         }
 
         for (const role of level.roles) {
-          // Skip validation for user IDs (which might be UUIDs)
-          if (typeof role === 'string' && role.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-            continue; // It's a UUID, skip validation
+          // Skip validation for user IDs (which might not be in UserRole enum)
+          if (typeof role === 'string' && role.length > 10) {
+            continue; // Likely a UUID, skip validation
           }
           
           // Check if the role matches any UserRole value (case-insensitive)
@@ -513,32 +488,14 @@ export const updateApprovalWorkflow = async (
           .code(400);
       }
 
-      // Build the query based on whether requesterRoleId is being updated
-      const whereConditions: any[] = [];
-      
-      // Check if requesterRoleId is being updated
-      const newRequesterRoleId = requesterRoleId !== undefined ? requesterRoleId : approvalWorkflow.requesterRoleId;
-      
-      if (newRequesterRoleId) {
-        // If requesterRoleId is provided, check for overlaps with the same role
-        whereConditions.push({
-          id: Not(id),
-          minDays: LessThanOrEqual(newMaxDays),
-          maxDays: MoreThanOrEqual(newMinDays),
-          requesterRoleId: newRequesterRoleId
-        });
-      } else {
-        // If no requesterRoleId, check for overlaps with workflows that don't have a role specified
-        whereConditions.push({
-          id: Not(id),
-          minDays: LessThanOrEqual(newMaxDays),
-          maxDays: MoreThanOrEqual(newMinDays),
-          requesterRoleId: null
-        });
-      }
-      
       const overlappingWorkflows = await approvalWorkflowRepository.find({
-        where: whereConditions,
+        where: [
+          {
+            id: Not(id),
+            minDays: LessThanOrEqual(newMaxDays),
+            maxDays: MoreThanOrEqual(newMinDays),
+          },
+        ],
       });
 
       if (overlappingWorkflows.length > 0) {
@@ -582,11 +539,6 @@ export const updateApprovalWorkflow = async (
     // Update categoryId if provided
     if (categoryId !== undefined) {
       approvalWorkflow.categoryId = categoryId;
-    }
-    
-    // Update requesterRoleId if provided
-    if (requesterRoleId !== undefined) {
-      approvalWorkflow.requesterRoleId = requesterRoleId;
     }
 
     // Save updated approval workflow
@@ -705,7 +657,6 @@ export const getApprovalWorkflowForDuration = async (
 ) => {
   try {
     const { days } = request.params;
-    const { requesterRoleId } = request.query as any;
     const numDays = parseFloat(days);
     
     if (isNaN(numDays) || numDays < 0) {
@@ -714,8 +665,8 @@ export const getApprovalWorkflowForDuration = async (
         .code(400);
     }
     
-    // Get the approval workflow for the specified duration and requester role
-    const approvalWorkflow = await getWorkflowForDuration(numDays, requesterRoleId);
+    // Get the approval workflow for the specified duration
+    const approvalWorkflow = await getWorkflowForDuration(numDays);
     
     // Check if auth credentials exist
     if (!request.auth || !request.auth.credentials) {

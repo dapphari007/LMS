@@ -128,7 +128,6 @@ export const createDefaultLeaveTypes = async (
           logger.info(`Created leave type: ${leaveTypeData.name}`);
         } else {
           skipped++;
-          logger.info(`Skipped existing leave type: ${leaveTypeData.name}`);
         }
       } catch (leaveTypeError) {
         // Log the error but continue with the next leave type

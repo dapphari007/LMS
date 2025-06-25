@@ -386,10 +386,7 @@ export const initializeSystemPages = async () => {
       page.isActive = true;
 
       await pageRepository.save(page);
-      logger.info(`System page ${pageData.name} initialized`);
     }
-
-    logger.info("System pages initialization completed");
   } catch (error) {
     logger.error(`Error initializing system pages: ${error}`);
   }

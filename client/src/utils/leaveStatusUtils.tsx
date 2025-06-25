@@ -87,15 +87,13 @@ export const getApprovalLevel = (
  * @param hasCustomAdminRole Whether the user has custom admin permissions
  * @param requestStatus The leave request status
  * @param metadata The leave request metadata containing approval workflow information
- * @param userId The current user's ID to check for duplicate approvals
  * @returns Boolean indicating if the user can approve the request
  */
 export const canApproveRequest = (
   userRole: string,
   hasCustomAdminRole: boolean = false,
   requestStatus: string,
-  metadata?: LeaveRequestMetadata,
-  userId?: string
+  metadata?: LeaveRequestMetadata
 ): boolean => {
   const userApprovalLevel = getApprovalLevel(userRole, hasCustomAdminRole);
   const isAdmin = userRole === "admin";
@@ -107,21 +105,8 @@ export const canApproveRequest = (
     hasCustomAdminRole,
     requestStatus,
     metadata,
-    userApprovalLevel,
-    userId
+    userApprovalLevel
   });
-  
-  // Check if the current user has already approved this request
-  if (userId && metadata && metadata.approvalHistory) {
-    const hasAlreadyApproved = metadata.approvalHistory.some(
-      (approval: any) => approval.approverId === userId
-    );
-    
-    if (hasAlreadyApproved) {
-      console.log('User has already approved this request');
-      return false;
-    }
-  }
   
   // If user has no approval level, they can't approve anything
   if (userApprovalLevel === 0) {

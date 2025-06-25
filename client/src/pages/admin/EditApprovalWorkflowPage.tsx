@@ -18,7 +18,6 @@ type FormValues = {
   maxDays: number;
   isActive: boolean;
   categoryId: string;
-  requesterRoleId: string;
   steps: {
     id?: string;
     order: number;
@@ -137,7 +136,6 @@ export default function EditApprovalWorkflowPage() {
         maxDays: workflow.maxDays,
         isActive: workflow.isActive,
         categoryId: workflow.categoryId || "",
-        requesterRoleId: workflow.requesterRoleId || "",
         steps: steps,
       });
     }
@@ -268,8 +266,7 @@ export default function EditApprovalWorkflowPage() {
       maxDays: data.maxDays,
       approvalLevels: approvalLevels,
       isActive: data.isActive,
-      categoryId: data.categoryId || undefined,
-      requesterRoleId: data.requesterRoleId || undefined
+      categoryId: data.categoryId || undefined
     });
   };
 
@@ -393,27 +390,6 @@ export default function EditApprovalWorkflowPage() {
           )}
           <p className="text-gray-500 text-xs mt-1">
             Selecting a category will automatically set the min/max days range
-          </p>
-        </div>
-        
-        <div className="mb-6">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Requester Role
-          </label>
-          <select
-            {...register("requesterRoleId")}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-          >
-            <option value="">Select a role (optional)</option>
-            {roles.map((role: Role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-              </option>
-            ))}
-          </select>
-          <p className="text-sm text-gray-600 mt-1">
-            Selecting a role will make this workflow apply only to leave requests from users with this role.
-            Leave blank to create a default workflow that applies to all roles without a specific workflow.
           </p>
         </div>
 
@@ -583,6 +559,19 @@ export default function EditApprovalWorkflowPage() {
                   </select>
                 </div>
 
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      {...register(`steps.${index}.departmentSpecific`)}
+                      className="mr-2 h-5 w-5"
+                    />
+                    <span className="text-gray-700 text-sm">
+                      Department Specific (only approvers from the same department)
+                    </span>
+                  </label>
+                </div>
+
                 <div className="md:col-span-2">
                   <label className="flex items-center">
                     <input
@@ -592,19 +581,6 @@ export default function EditApprovalWorkflowPage() {
                     />
                     <span className="text-gray-700 text-sm">
                       Required Approval (cannot be skipped)
-                    </span>
-                  </label>
-                </div>
-                
-                <div className="md:col-span-2">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      {...register(`steps.${index}.departmentSpecific`)}
-                      className="mr-2 h-5 w-5"
-                    />
-                    <span className="text-gray-700 text-sm">
-                      Department Specific (only approvers from the same department)
                     </span>
                   </label>
                 </div>

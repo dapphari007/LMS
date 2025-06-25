@@ -473,8 +473,6 @@ export const updateUserRoleIds = async () => {
         }
       }
     }
-    
-    logger.info('User roleIds have been updated successfully');
   } catch (error) {
     logger.error(`Error in updateUserRoleIds: ${error}`);
   }
