@@ -2,11 +2,9 @@ import { AppDataSource } from "../config/database";
 import { User, UserRole, UserLevel, Gender } from "../models";
 import { hashPassword } from "../utils/auth";
 import logger from "../utils/logger";
-import { syncEssentialData } from "./syncEssentialData";
+import { syncEssentialData, syncLeaveTypes, setupDefaultData } from "./syncEssentialData";
 import { ensureDefaultUsers } from "../utils/ensure-default-users";
 import { initApprovalWorkflows } from "../config/initApprovalWorkflows";
-import { setupDefaultData } from "./setupDefaultData";
-import { createDefaultLeaveTypes } from "./createDefaultLeaveTypes";
 import { initializeSystemRoles, updateUserRoleIds } from "../controllers/roleController";
 import { initializeSystemPages } from "../controllers/pageController";
 import { initializeWorkflows } from "../services/workflowInitService";
@@ -64,7 +62,7 @@ export const initializeSystem = async (): Promise<void> => {
     logger.info("Default users created/updated");
 
     // Create default leave types
-    await createDefaultLeaveTypes(false);
+    await syncLeaveTypes();
     logger.info("Default leave types created/updated");
 
     // Ensure workflow migration is complete

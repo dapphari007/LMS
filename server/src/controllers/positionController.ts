@@ -130,7 +130,7 @@ export const getAllPositions = async (request: Request, h: ResponseToolkit) => {
       if (totalPositions === 0) {
         // If no positions exist, create default positions
         console.log("No positions found in database, creating default positions");
-        const { syncPositions } = require("../scripts/sync-positions");
+        const { syncPositions } = require("../scripts/syncEssentialData");
         await syncPositions();
         
         // Try to fetch positions again

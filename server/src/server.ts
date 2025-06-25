@@ -9,10 +9,8 @@ import {
 } from "./config/database";
 import config from "./config/config";
 import logger from "./utils/logger";
-import { showRoles } from "./scripts/showRoles";
-import { createCustomRole } from "./scripts/manageRoles";
-import { syncEssentialData } from "./scripts/syncEssentialData";
-import { checkEssentialData } from "./scripts/checkEssentialData";
+import { showRoles, createCustomRole } from "./scripts/manageRoles";
+import { syncEssentialData, checkEssentialData } from "./scripts/syncEssentialData";
 import { initializeSystem } from "./scripts/initializeSystem";
 
 const init = async () => {
