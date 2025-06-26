@@ -14,7 +14,7 @@ const roleRoutes: ServerRoute[] = [
     path: "/api/roles",
     handler: getAllRoles,
     options: {
-      auth: "manager_hr",
+      auth: "manager",
       description: "Get all roles",
       tags: ["api", "roles"],
     },
@@ -24,7 +24,7 @@ const roleRoutes: ServerRoute[] = [
     path: "/api/roles/{id}",
     handler: getRoleById,
     options: {
-      auth: "manager_hr",
+      auth: "manager",
       description: "Get role by ID",
       tags: ["api", "roles"],
     },

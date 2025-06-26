@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import Modal from '../ui/Modal';
 import { LeaveRequest } from '../../types';
 import { formatDate } from '../../utils/dateUtils';
-import { renderStatusBadge } from '../../utils/leaveStatusUtils';
+import { renderStatusBadge, formatRoleName } from '../../utils/leaveStatusUtils';
 import { getApprovalWorkflowForDuration } from '../../services/approvalWorkflowService';
 import { getAllWorkflowCategories, WorkflowCategory } from '../../services/workflowCategoryService';
 
@@ -25,10 +25,18 @@ const ApprovalWorkflowModal: React.FC<ApprovalWorkflowModalProps> = ({
   const currentLevel = metadata.currentApprovalLevel || 0;
   const requiredLevels = metadata.requiredApprovalLevels || [];
   
-  // Fetch the workflow based on the leave request duration
+  // Log metadata for debugging
+  console.log('Leave request metadata:', metadata);
+  console.log('Request user role from metadata:', metadata.requestUserRole);
+  console.log('Request user role ID from metadata:', metadata.requestUserRoleId);
+  
+  // Fetch the workflow based on the leave request duration and user's role ID
   const { data: workflowData, isLoading: isLoadingWorkflow } = useQuery({
-    queryKey: ['approvalWorkflow', leaveRequest.numberOfDays],
-    queryFn: () => getApprovalWorkflowForDuration(leaveRequest.numberOfDays),
+    queryKey: ['approvalWorkflow', leaveRequest.numberOfDays, leaveRequest.metadata?.requestUserRoleId],
+    queryFn: () => getApprovalWorkflowForDuration(
+      leaveRequest.numberOfDays, 
+      leaveRequest.metadata?.requestUserRoleId
+    ),
     enabled: isOpen && !!leaveRequest.numberOfDays,
   });
   
@@ -87,6 +95,12 @@ const ApprovalWorkflowModal: React.FC<ApprovalWorkflowModalProps> = ({
                     {workflowCategory && workflowData.minDays && workflowData.maxDays ? ' | ' : ''}
                     {workflowData.minDays !== undefined && workflowData.maxDays !== undefined ? 
                       `Duration: ${workflowData.minDays}-${workflowData.maxDays} days` : ''}
+                    {/* Display role information with priority to metadata */}
+                    {leaveRequest.metadata?.requestUserRole ? (
+                      <span> | Requester Role: {formatRoleName(leaveRequest.metadata.requestUserRole)}</span>
+                    ) : workflowData.requesterRole ? (
+                      <span> | Requester Role: {formatRoleName(workflowData.requesterRole.name)}</span>
+                    ) : null}
                   </p>
                 </div>
                 <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">

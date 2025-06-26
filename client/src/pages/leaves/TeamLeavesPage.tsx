@@ -57,6 +57,18 @@ const TeamLeavesPage: React.FC = () => {
       return false;
     }
     
+    // Check if the current user has already approved this request
+    if (request.metadata && request.metadata.approvalHistory) {
+      const hasAlreadyApproved = request.metadata.approvalHistory.some(
+        (approval: any) => approval.approverId === user?.id
+      );
+      
+      if (hasAlreadyApproved) {
+        console.log('User has already approved this request');
+        return false;
+      }
+    }
+    
     // Get the current user's approval level
     const userApprovalLevel = getApprovalLevel();
     
@@ -96,6 +108,12 @@ const TeamLeavesPage: React.FC = () => {
             console.log('Manager can approve team lead request');
             return true;
           }
+          
+          // If request is from a Team Lead and approver is HR
+          if (request.user.role === 'team_lead' && userRole === 'hr') {
+            console.log('HR can approve team lead request');
+            return true;
+          }
         }
         
         // User can approve if their level matches the first required level
@@ -104,6 +122,12 @@ const TeamLeavesPage: React.FC = () => {
         // Check if the request is from a team lead and the current user is a manager
         if (request.user?.role === 'team_lead' && userRole === 'manager') {
           console.log('Manager can approve team lead request');
+          return true;
+        }
+        
+        // Check if the request is from a team lead and the current user is HR
+        if (request.user?.role === 'team_lead' && userRole === 'hr') {
+          console.log('HR can approve team lead request');
           return true;
         }
         
@@ -166,6 +190,12 @@ const TeamLeavesPage: React.FC = () => {
             console.log('Manager can approve team lead request in partially approved state');
             return true;
           }
+          
+          // If request is from a Team Lead and approver is HR
+          if (request.user.role === 'team_lead' && userRole === 'hr') {
+            console.log('HR can approve team lead request in partially approved state');
+            return true;
+          }
         }
         
         // User can approve if their level matches the next required level
@@ -174,6 +204,12 @@ const TeamLeavesPage: React.FC = () => {
         // Check if the request is from a team lead and the current user is a manager
         if (request.user?.role === 'team_lead' && userRole === 'manager') {
           console.log('Manager can approve team lead request');
+          return true;
+        }
+        
+        // Check if the request is from a team lead and the current user is HR
+        if (request.user?.role === 'team_lead' && userRole === 'hr') {
+          console.log('HR can approve team lead request in default workflow');
           return true;
         }
         
@@ -212,7 +248,7 @@ const TeamLeavesPage: React.FC = () => {
     }
     
     // Default to the utility function for any other cases
-    return canApproveRequestUtil(userRole, hasCustomAdminRole, request.status, request.metadata);
+    return canApproveRequestUtil(userRole, hasCustomAdminRole, request.status, request.metadata, user?.id);
   };
 
   // Check if user has permission to view team leaves

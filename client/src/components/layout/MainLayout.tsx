@@ -37,11 +37,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       href: "/apply-leave",
       icon: ClipboardDocumentListIcon,
     },
-    {
-      name: "Leave Calendar",
-      href: "/leave-calendar",
-      icon: CalendarDaysIcon,
-    },
   ];
 
   // Check if user has permission to view team leaves

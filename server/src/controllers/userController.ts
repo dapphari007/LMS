@@ -7,6 +7,13 @@ import { In } from "typeorm";
 
 export const createUser = async (request: Request, h: ResponseToolkit) => {
   try {
+    // Check if user has permission to create users
+    const userRole = request.auth.credentials.role;
+    if (userRole !== UserRole.SUPER_ADMIN && userRole !== UserRole.MANAGER) {
+      logger.error(`User ${request.auth.credentials.id} with role ${userRole} attempted to create a user`);
+      return h.response({ message: "You don't have permission to create users" }).code(403);
+    }
+    
     // Ensure database connection is initialized
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
@@ -133,6 +140,18 @@ export const createUser = async (request: Request, h: ResponseToolkit) => {
 
 export const getAllUsers = async (request: Request, h: ResponseToolkit) => {
   try {
+    // Check if user has permission to view all users
+    const userRole = request.auth.credentials.role;
+    logger.info(`User ${request.auth.credentials.id} with role ${userRole} is accessing the users list`);
+    
+    if (userRole !== UserRole.SUPER_ADMIN && 
+        userRole !== UserRole.MANAGER && 
+        userRole !== UserRole.HR && 
+        userRole !== UserRole.TEAM_LEAD) {
+      logger.error(`User ${request.auth.credentials.id} with role ${userRole} attempted to access the users list`);
+      return h.response({ message: "You don't have permission to view all users" }).code(403);
+    }
+    
     // Ensure database connection is initialized
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
@@ -221,6 +240,22 @@ export const getAllUsers = async (request: Request, h: ResponseToolkit) => {
 
 export const getUserById = async (request: Request, h: ResponseToolkit) => {
   try {
+    // Check if user has permission to view user details
+    const userRole = request.auth.credentials.role;
+    const userId = request.auth.credentials.id;
+    const requestedUserId = request.params.id;
+    
+    logger.info(`User ${userId} with role ${userRole} is accessing user details for user ${requestedUserId}`);
+    
+    // Users can view their own details, or if they are super_admin, manager, or HR
+    if (userId !== requestedUserId && 
+        userRole !== UserRole.SUPER_ADMIN && 
+        userRole !== UserRole.MANAGER && 
+        userRole !== UserRole.HR) {
+      logger.error(`User ${userId} with role ${userRole} attempted to access details for user ${requestedUserId}`);
+      return h.response({ message: "You don't have permission to view this user's details" }).code(403);
+    }
+    
     // Ensure database connection is initialized
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
@@ -294,6 +329,19 @@ export const getUserById = async (request: Request, h: ResponseToolkit) => {
 
 export const updateUser = async (request: Request, h: ResponseToolkit) => {
   try {
+    // Check if user has permission to update users
+    const userRole = request.auth.credentials.role;
+    const userId = request.auth.credentials.id;
+    const requestedUserId = request.params.id;
+    
+    // Users can update their own details, or if they are super_admin or manager
+    if (userId !== requestedUserId && 
+        userRole !== UserRole.SUPER_ADMIN && 
+        userRole !== UserRole.MANAGER) {
+      logger.error(`User ${userId} with role ${userRole} attempted to update user ${requestedUserId}`);
+      return h.response({ message: "You don't have permission to update this user" }).code(403);
+    }
+    
     // Ensure database connection is initialized
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
@@ -441,6 +489,13 @@ export const updateUser = async (request: Request, h: ResponseToolkit) => {
 
 export const deleteUser = async (request: Request, h: ResponseToolkit) => {
   try {
+    // Check if user has permission to delete users
+    const userRole = request.auth.credentials.role;
+    if (userRole !== UserRole.SUPER_ADMIN) {
+      logger.error(`User ${request.auth.credentials.id} with role ${userRole} attempted to delete a user`);
+      return h.response({ message: "You don't have permission to delete users" }).code(403);
+    }
+    
     // Ensure database connection is initialized
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
@@ -491,6 +546,17 @@ export const resetUserPassword = async (
   h: ResponseToolkit
 ) => {
   try {
+    // Check if user has permission to reset passwords
+    const userRole = request.auth.credentials.role;
+    const userId = request.auth.credentials.id;
+    const requestedUserId = request.params.id;
+    
+    // Users can reset their own password, or if they are super_admin
+    if (userId !== requestedUserId && userRole !== UserRole.SUPER_ADMIN) {
+      logger.error(`User ${userId} with role ${userRole} attempted to reset password for user ${requestedUserId}`);
+      return h.response({ message: "You don't have permission to reset this user's password" }).code(403);
+    }
+    
     // Ensure database connection is initialized
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
@@ -660,7 +726,7 @@ export const getUserApprovers = async (request: Request, h: ResponseToolkit) => 
       if (currentUser.managerId) {
         const manager = await userRepository.findOne({ 
           where: { id: currentUser.managerId },
-          select: ["id", "firstName", "lastName", "email", "role"] 
+          select: ["id", "firstName", "lastName", "email", "role", "hrId"] 
         });
         
         if (manager) {
@@ -669,22 +735,22 @@ export const getUserApprovers = async (request: Request, h: ResponseToolkit) => 
             level: 1, // Make the manager the Level 1 approver for Team Leads
             isFallback: false
           });
-        }
-      }
-      
-      // Add HR as Level 2 approver
-      if (currentUser.hrId) {
-        const hr = await userRepository.findOne({ 
-          where: { id: currentUser.hrId },
-          select: ["id", "firstName", "lastName", "email", "role"] 
-        });
-        
-        if (hr) {
-          approvers.push({
-            ...hr,
-            level: 2, // HR becomes Level 2 for Team Leads
-            isFallback: false
-          });
+          
+          // For Team Leads, the HR should be the HR assigned to their manager
+          if (manager.hrId) {
+            const hr = await userRepository.findOne({ 
+              where: { id: manager.hrId },
+              select: ["id", "firstName", "lastName", "email", "role"] 
+            });
+            
+            if (hr) {
+              approvers.push({
+                ...hr,
+                level: 2, // HR becomes Level 2 for Team Leads
+                isFallback: false
+              });
+            }
+          }
         }
       }
     } 
@@ -834,15 +900,32 @@ export const getUserApprovers = async (request: Request, h: ResponseToolkit) => 
           
         const managers = await userRepository.find({
           where: managerFilter,
-          select: ["id", "firstName", "lastName", "email", "role"]
+          select: ["id", "firstName", "lastName", "email", "role", "hrId"]
         });
         
         if (managers.length > 0) {
+          const manager = managers[0];
           approvers.push({
-            ...managers[0],
+            ...manager,
             level: 1, // Level 1 for Team Leads is their manager
             isFallback: true
           });
+          
+          // Try to find HR assigned to this manager
+          if (manager.hrId) {
+            const hr = await userRepository.findOne({ 
+              where: { id: manager.hrId },
+              select: ["id", "firstName", "lastName", "email", "role"] 
+            });
+            
+            if (hr) {
+              approvers.push({
+                ...hr,
+                level: 2, // HR becomes Level 2 for Team Leads
+                isFallback: true
+              });
+            }
+          }
         }
       }
       // For Managers, find HR directly
@@ -959,6 +1042,47 @@ export const getUserApprovers = async (request: Request, h: ResponseToolkit) => 
             level: 3,
             isFallback: true
           });
+        }
+      }
+    }
+    
+    // Additional fallback for team leads who have a manager but no HR
+    if (currentUser.role === UserRole.TEAM_LEAD) {
+      const hasManager = approvers.some(a => a.level === 1);
+      const hasHR = approvers.some(a => a.level === 2);
+      
+      // If we have a manager but no HR, try to find any HR as fallback
+      if (hasManager && !hasHR) {
+        // First try to find HR in the same department
+        const departmentHRs = await userRepository.find({
+          where: { 
+            role: UserRole.HR, 
+            isActive: true,
+            department: currentUser.department 
+          },
+          select: ["id", "firstName", "lastName", "email", "role"]
+        });
+        
+        if (departmentHRs.length > 0) {
+          approvers.push({
+            ...departmentHRs[0],
+            level: 2, // HR becomes Level 2 for Team Leads
+            isFallback: true
+          });
+        } else {
+          // If no HR in the same department, find any HR
+          const hrs = await userRepository.find({
+            where: { role: UserRole.HR, isActive: true },
+            select: ["id", "firstName", "lastName", "email", "role"]
+          });
+          
+          if (hrs.length > 0) {
+            approvers.push({
+              ...hrs[0],
+              level: 2, // HR becomes Level 2 for Team Leads
+              isFallback: true
+            });
+          }
         }
       }
     }

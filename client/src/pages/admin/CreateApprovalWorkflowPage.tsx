@@ -186,6 +186,7 @@ export default function CreateApprovalWorkflowPage() {
     const approvalLevels = formattedSteps.map((step, index) => ({
       level: index + 1,
       roles: step.roleIds.filter(id => id), // Remove empty role IDs
+      roleIds: step.roleIds.filter(id => id), // Also include roleIds for the server
       departmentSpecific: step.departmentSpecific || false,
       required: step.required || false,
     }));
@@ -199,7 +200,8 @@ export default function CreateApprovalWorkflowPage() {
       minDays: data.minDays,
       maxDays: data.maxDays,
       approvalLevels: approvalLevels,
-      isActive: data.isActive
+      isActive: data.isActive,
+      requesterRoleId: data.roleId || undefined
     });
   };
 
@@ -323,7 +325,7 @@ export default function CreateApprovalWorkflowPage() {
         
         <div className="mb-6">
           <label className="block text-gray-700 text-sm font-bold mb-2">
-            Role
+            Requester Role
           </label>
           <select
             {...register("roleId")}
@@ -337,7 +339,8 @@ export default function CreateApprovalWorkflowPage() {
             ))}
           </select>
           <p className="text-sm text-gray-600 mt-1">
-            Selecting a role will create a role-specific tab in the Approval Management page.
+            Selecting a role will make this workflow apply only to leave requests from users with this role.
+            Leave blank to create a default workflow that applies to all roles without a specific workflow.
           </p>
         </div>
 
@@ -509,19 +512,6 @@ export default function CreateApprovalWorkflowPage() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      {...register(`steps.${index}.departmentSpecific`)}
-                      className="mr-2 h-5 w-5"
-                    />
-                    <span className="text-gray-700 text-sm">
-                      Department Specific (only approvers from the same department)
-                    </span>
-                  </label>
-                </div>
-
                 <div className="md:col-span-2">
                   <label className="flex items-center">
                     <input
@@ -531,6 +521,19 @@ export default function CreateApprovalWorkflowPage() {
                     />
                     <span className="text-gray-700 text-sm">
                       Required Approval (cannot be skipped)
+                    </span>
+                  </label>
+                </div>
+                
+                <div className="md:col-span-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      {...register(`steps.${index}.departmentSpecific`)}
+                      className="mr-2 h-5 w-5"
+                    />
+                    <span className="text-gray-700 text-sm">
+                      Department Specific (only approvers from the same department)
                     </span>
                   </label>
                 </div>

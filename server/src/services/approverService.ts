@@ -339,7 +339,11 @@ export const isApproverAuthorized = async (
     const isAssignedTeamLead = user.teamLeadId === approverId;
     const isAssignedHR = user.hrId === approverId;
 
+    logger.info(`Authorization check for approver ${approverId} (${approver.firstName} ${approver.lastName}, role: ${approver.role}, roleId: ${approver.roleId}) for user ${userId} (${user.firstName} ${user.lastName}, role: ${user.role}, roleId: ${user.roleId})`);
+    logger.info(`Is assigned manager: ${isAssignedManager}, Is assigned team lead: ${isAssignedTeamLead}, Is assigned HR: ${isAssignedHR}`);
+
     if (isAssignedManager || isAssignedTeamLead || isAssignedHR) {
+      logger.info(`Approver ${approverId} is authorized as assigned manager/team lead/HR for user ${userId}`);
       return { isAuthorized: true };
     }
 
@@ -371,13 +375,18 @@ export const isApproverAuthorized = async (
 
     // Team leads can approve for their department
     if (approver.role === UserRole.TEAM_LEAD && isSameDepartment) {
+      logger.info(`Approver ${approverId} is a team lead in the same department as user ${userId}`);
+      
       // Team leads should not approve for other team leads
       if (user.role === UserRole.TEAM_LEAD) {
+        logger.info(`User ${userId} is also a team lead - team leads cannot approve for other team leads`);
         return { 
           isAuthorized: false, 
           reason: "Team leads cannot approve leave requests for other team leads" 
         };
       }
+      
+      logger.info(`Team lead ${approverId} is authorized to approve for user ${userId} in the same department`);
       return { isAuthorized: true };
     }
 

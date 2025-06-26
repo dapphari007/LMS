@@ -99,9 +99,31 @@ export const getUserApprovers = async (workflowId?: string): Promise<{ approvers
       params.append("workflowId", workflowId);
     }
     
-    return get<{ approvers: any[] }>(`/users/my-approvers${params.toString() ? `?${params.toString()}` : ''}`);
+    // Add a parameter to ensure we get all approvers, including HR
+    params.append("includeAllLevels", "true");
+    
+    const result = await get<{ approvers: any[] }>(`/users/my-approvers${params.toString() ? `?${params.toString()}` : ''}`);
+    
+    // Log the approvers for debugging
+    console.log('Approvers fetched from API:', result.approvers);
+    
+    return result;
   } catch (error) {
     console.error('Error fetching user approvers:', error);
     throw error;
+  }
+};
+
+// Function to get HR users
+export const getHRUsers = async (): Promise<User[]> => {
+  try {
+    const params = new URLSearchParams();
+    params.append("role", "hr");
+    
+    const response = await get<{ users: User[] }>(`/users?${params.toString()}`);
+    return response.users || [];
+  } catch (error) {
+    console.error('Error fetching HR users:', error);
+    return [];
   }
 };

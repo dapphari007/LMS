@@ -1,5 +1,16 @@
 import Badge from '../components/ui/Badge';
 
+// Helper function to format role names for display
+export const formatRoleName = (roleName: string): string => {
+  if (!roleName) return '';
+  
+  // Convert snake_case to Title Case (e.g., "team_lead" to "Team Lead")
+  return roleName
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 // Type for leave request status
 export type LeaveRequestStatus = 
   | "pending" 
@@ -14,6 +25,8 @@ export interface LeaveRequestMetadata {
   currentApprovalLevel?: number;
   requiredApprovalLevels?: number[];
   approvalHistory?: any[];
+  requestUserRole?: string;
+  requestUserRoleId?: string;
   [key: string]: any;
 }
 
@@ -87,13 +100,15 @@ export const getApprovalLevel = (
  * @param hasCustomAdminRole Whether the user has custom admin permissions
  * @param requestStatus The leave request status
  * @param metadata The leave request metadata containing approval workflow information
+ * @param userId The current user's ID to check for duplicate approvals
  * @returns Boolean indicating if the user can approve the request
  */
 export const canApproveRequest = (
   userRole: string,
   hasCustomAdminRole: boolean = false,
   requestStatus: string,
-  metadata?: LeaveRequestMetadata
+  metadata?: LeaveRequestMetadata,
+  userId?: string
 ): boolean => {
   const userApprovalLevel = getApprovalLevel(userRole, hasCustomAdminRole);
   const isAdmin = userRole === "admin";
@@ -105,8 +120,21 @@ export const canApproveRequest = (
     hasCustomAdminRole,
     requestStatus,
     metadata,
-    userApprovalLevel
+    userApprovalLevel,
+    userId
   });
+  
+  // Check if the current user has already approved this request
+  if (userId && metadata && metadata.approvalHistory) {
+    const hasAlreadyApproved = metadata.approvalHistory.some(
+      (approval: any) => approval.approverId === userId
+    );
+    
+    if (hasAlreadyApproved) {
+      console.log('User has already approved this request');
+      return false;
+    }
+  }
   
   // If user has no approval level, they can't approve anything
   if (userApprovalLevel === 0) {
@@ -138,21 +166,29 @@ export const canApproveRequest = (
       
       // Check for special cases based on the request user's role
       if (metadata.requestUserRole) {
+        const normalizedRequestRole = metadata.requestUserRole.toLowerCase();
+        
         // If request is from a Manager and approver is HR
-        if (metadata.requestUserRole === 'manager' && userRole === 'hr') {
+        if (normalizedRequestRole.includes('manager') && userRole === 'hr') {
           console.log('HR can approve manager request');
           return true;
         }
         
         // If request is from HR and approver is Super Admin
-        if (metadata.requestUserRole === 'hr' && userRole === 'super_admin') {
+        if (normalizedRequestRole.includes('hr') && userRole === 'super_admin') {
           console.log('Super Admin can approve HR request');
           return true;
         }
         
         // If request is from a Team Lead and approver is a Manager
-        if (metadata.requestUserRole === 'team_lead' && userRole === 'manager') {
+        if (normalizedRequestRole.includes('team_lead') && userRole === 'manager') {
           console.log('Manager can approve team lead request');
+          return true;
+        }
+        
+        // If request is from a Team Lead and approver is HR
+        if (normalizedRequestRole.includes('team_lead') && userRole === 'hr') {
+          console.log('HR can approve team lead request');
           return true;
         }
       }
@@ -169,9 +205,12 @@ export const canApproveRequest = (
       return canApprove;
     } else {
       // Check if the request is from a team lead and the approver is a manager
-      if (metadata && metadata.requestUserRole === 'team_lead' && userRole === 'manager') {
-        console.log('Manager can approve team lead request');
-        return true;
+      if (metadata && metadata.requestUserRole) {
+        const normalizedRequestRole = metadata.requestUserRole.toLowerCase();
+        if (normalizedRequestRole.includes('team_lead') && userRole === 'manager') {
+          console.log('Manager can approve team lead request');
+          return true;
+        }
       }
       
       // If no custom workflow, only team leads can approve initial requests
@@ -214,21 +253,29 @@ export const canApproveRequest = (
       
       // Check for special cases based on the request user's role
       if (metadata.requestUserRole) {
+        const normalizedRequestRole = metadata.requestUserRole.toLowerCase();
+        
         // If request is from a Manager and approver is HR
-        if (metadata.requestUserRole === 'manager' && userRole === 'hr') {
+        if (normalizedRequestRole.includes('manager') && userRole === 'hr') {
           console.log('HR can approve manager request in partially approved state');
           return true;
         }
         
         // If request is from HR and approver is Super Admin
-        if (metadata.requestUserRole === 'hr' && userRole === 'super_admin') {
+        if (normalizedRequestRole.includes('hr') && userRole === 'super_admin') {
           console.log('Super Admin can approve HR request in partially approved state');
           return true;
         }
         
         // If request is from a Team Lead and approver is a Manager
-        if (metadata.requestUserRole === 'team_lead' && userRole === 'manager') {
+        if (normalizedRequestRole.includes('team_lead') && userRole === 'manager') {
           console.log('Manager can approve team lead request in partially approved state');
+          return true;
+        }
+        
+        // If request is from a Team Lead and approver is HR
+        if (normalizedRequestRole.includes('team_lead') && userRole === 'hr') {
+          console.log('HR can approve team lead request in partially approved state');
           return true;
         }
       }
@@ -257,21 +304,29 @@ export const canApproveRequest = (
       
       // Check for special cases based on the request user's role
       if (metadata.requestUserRole) {
+        const normalizedRequestRole = metadata.requestUserRole.toLowerCase();
+        
         // If request is from a Manager and approver is HR
-        if (metadata.requestUserRole === 'manager' && userRole === 'hr') {
+        if (normalizedRequestRole.includes('manager') && userRole === 'hr') {
           console.log('HR can approve manager request in default workflow');
           return true;
         }
         
         // If request is from HR and approver is Super Admin
-        if (metadata.requestUserRole === 'hr' && userRole === 'super_admin') {
+        if (normalizedRequestRole.includes('hr') && userRole === 'super_admin') {
           console.log('Super Admin can approve HR request in default workflow');
           return true;
         }
         
         // If request is from a Team Lead and approver is a Manager
-        if (metadata.requestUserRole === 'team_lead' && userRole === 'manager') {
+        if (normalizedRequestRole.includes('team_lead') && userRole === 'manager') {
           console.log('Manager can approve team lead request in default workflow');
+          return true;
+        }
+        
+        // If request is from a Team Lead and approver is HR
+        if (normalizedRequestRole.includes('team_lead') && userRole === 'hr') {
+          console.log('HR can approve team lead request in default workflow');
           return true;
         }
       }

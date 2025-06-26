@@ -7,7 +7,7 @@ const userRoutes: ServerRoute[] = [
     path: "/api/users",
     handler: UserController.createUser,
     options: {
-      auth: "super_admin",
+      auth: "jwt",
       description: "Create a new user",
       tags: ["api", "users"],
     },
@@ -17,7 +17,7 @@ const userRoutes: ServerRoute[] = [
     path: "/api/users",
     handler: UserController.getAllUsers,
     options: {
-      auth: "manager_hr",
+      auth: "jwt",
       description: "Get all users",
       tags: ["api", "users"],
     },
@@ -27,7 +27,7 @@ const userRoutes: ServerRoute[] = [
     path: "/api/users/{id}",
     handler: UserController.getUserById,
     options: {
-      auth: { strategies: ["super_admin", "manager_hr"] },
+      auth: "jwt",
       description: "Get user by ID",
       tags: ["api", "users"],
     },
@@ -37,7 +37,7 @@ const userRoutes: ServerRoute[] = [
     path: "/api/users/{id}",
     handler: UserController.updateUser,
     options: {
-      auth: "super_admin",
+      auth: "jwt",
       description: "Update user",
       tags: ["api", "users"],
     },
@@ -47,7 +47,7 @@ const userRoutes: ServerRoute[] = [
     path: "/api/users/{id}",
     handler: UserController.deleteUser,
     options: {
-      auth: "super_admin",
+      auth: "jwt",
       description: "Delete user",
       tags: ["api", "users"],
     },
@@ -57,7 +57,7 @@ const userRoutes: ServerRoute[] = [
     path: "/api/users/{id}/reset-password",
     handler: UserController.resetUserPassword,
     options: {
-      auth: "super_admin",
+      auth: "jwt",
       description: "Reset user password",
       tags: ["api", "users"],
     },
@@ -67,7 +67,7 @@ const userRoutes: ServerRoute[] = [
     path: "/api/users/{id}/deactivate",
     handler: UserController.deactivateUser,
     options: {
-      auth: "super_admin",
+      auth: "jwt",
       description: "Deactivate user",
       tags: ["api", "users"],
     },
@@ -77,7 +77,7 @@ const userRoutes: ServerRoute[] = [
     path: "/api/users/{id}/activate",
     handler: UserController.activateUser,
     options: {
-      auth: "super_admin",
+      auth: "jwt",
       description: "Activate user",
       tags: ["api", "users"],
     },
@@ -87,7 +87,7 @@ const userRoutes: ServerRoute[] = [
     path: "/api/users/my-approvers",
     handler: UserController.getUserApprovers,
     options: {
-      auth: "all_roles",
+      auth: "jwt",
       description: "Get user's approvers based on their role and department",
       tags: ["api", "users", "approvers"],
     },

@@ -17,7 +17,7 @@ const leaveRequestRoutes: ServerRoute[] = [
     path: "/api/leave-requests",
     handler: LeaveRequestController.getAllLeaveRequests,
     options: {
-      auth: "manager_hr",
+      auth: "manager",
       description: "Get all leave requests",
       tags: ["api", "leave-requests"],
     },
@@ -57,7 +57,7 @@ const leaveRequestRoutes: ServerRoute[] = [
     path: "/api/leave-requests/{id}/status",
     handler: LeaveRequestController.updateLeaveRequestStatus,
     options: {
-      auth: "manager_hr", // Includes SUPER_ADMIN, MANAGER, HR, and TEAM_LEAD roles
+      auth: "employee", // Includes all roles: SUPER_ADMIN, MANAGER, HR, TEAM_LEAD, and EMPLOYEE
       description: "Update leave request status",
       tags: ["api", "leave-requests"],
     },
@@ -77,7 +77,7 @@ const leaveRequestRoutes: ServerRoute[] = [
     path: "/api/leave-requests/{id}/approve-deletion",
     handler: LeaveRequestController.approveDeleteLeaveRequest,
     options: {
-      auth: "manager_hr",
+      auth: "manager",
       description: "Approve leave request deletion",
       tags: ["api", "leave-requests"],
     },
@@ -87,7 +87,7 @@ const leaveRequestRoutes: ServerRoute[] = [
     path: "/api/leave-requests/{id}/reject-deletion",
     handler: LeaveRequestController.rejectDeleteLeaveRequest,
     options: {
-      auth: "manager_hr",
+      auth: "manager",
       description: "Reject leave request deletion",
       tags: ["api", "leave-requests"],
     },

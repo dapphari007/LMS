@@ -122,8 +122,34 @@ export const ensureDefaultUsers = async (): Promise<void> => {
       console.log(`Missing tables: ${missingTables.join(", ")}`);
     }
 
-    // Define 5 default users with department and position
+    // Define 10 default users with department and position
     const defaultUsers = [
+      {
+        firstName: "John",
+        lastName: "Smith",
+        email: "john.smith@example.com",
+        password: "Admin@123",
+        phoneNumber: "+1-555-123-4567",
+        address: "123 Admin Street, New York, NY 10001",
+        role: UserRole.SUPER_ADMIN,
+        level: UserLevel.LEVEL_4,
+        gender: Gender.MALE,
+        department: "Executive",
+        position: "CEO",
+      },
+      {
+        firstName: "Sarah",
+        lastName: "Johnson",
+        email: "sarah.johnson@example.com",
+        password: "Admin@123",
+        phoneNumber: "+1-555-234-5678",
+        address: "456 Admin Avenue, San Francisco, CA 94105",
+        role: UserRole.SUPER_ADMIN,
+        level: UserLevel.LEVEL_4,
+        gender: Gender.FEMALE,
+        department: "Executive",
+        position: "CTO",
+      },
       {
         firstName: "Robert",
         lastName: "Miller",
@@ -136,6 +162,32 @@ export const ensureDefaultUsers = async (): Promise<void> => {
         gender: Gender.MALE,
         department: "Engineering",
         position: "Engineering Manager",
+      },
+      {
+        firstName: "Jennifer",
+        lastName: "Davis",
+        email: "jennifer.davis@example.com",
+        password: "Manager@123",
+        phoneNumber: "+1-555-789-0123",
+        address: "404 Manager Avenue, Denver, CO 80202",
+        role: UserRole.MANAGER,
+        level: UserLevel.LEVEL_3,
+        gender: Gender.FEMALE,
+        department: "Marketing",
+        position: "Marketing Manager",
+      },
+      {
+        firstName: "Susan",
+        lastName: "Clark",
+        email: "susan.clark@example.com",
+        password: "HR@123",
+        phoneNumber: "+1-555-234-5678",
+        address: "909 HR Street, Philadelphia, PA 19103",
+        role: UserRole.HR,
+        level: UserLevel.LEVEL_3,
+        gender: Gender.FEMALE,
+        department: "Human Resources",
+        position: "HR Director",
       },
       {
         firstName: "Richard",
@@ -162,6 +214,20 @@ export const ensureDefaultUsers = async (): Promise<void> => {
         gender: Gender.MALE,
         department: "Engineering",
         position: "Software Engineer",
+        managerId: null, // Will be set after managers are created
+      },
+      {
+        firstName: "Emily",
+        lastName: "Wilson",
+        email: "emily.wilson@example.com",
+        password: "Employee@123",
+        phoneNumber: "+1-555-567-8901",
+        address: "606 Employee Lane, Seattle, WA 98101",
+        role: UserRole.EMPLOYEE,
+        level: UserLevel.LEVEL_1,
+        gender: Gender.FEMALE,
+        department: "Engineering",
+        position: "QA Engineer",
         managerId: null, // Will be set after managers are created
       },
       {
@@ -231,11 +297,62 @@ export const ensureDefaultUsers = async (): Promise<void> => {
       createdUsers.push(savedUser);
     }
     
-    console.log(`Users: ${createdCount} created, ${existingCount} already exist`);
+    console.log(`Users: ${createdCount} created, ${existingCount} already exist`)
+
+    // Now set manager IDs for employees
+    const engineeringManager = createdUsers.find(
+      (user) =>
+        user.role === UserRole.MANAGER && user.department === "Engineering"
+    );
+
+    const marketingManager = createdUsers.find(
+      (user) =>
+        user.role === UserRole.MANAGER && user.department === "Marketing"
+    );
+
+    let managerAssignments = 0;
+
+    if (engineeringManager) {
+      // Find engineering employees and set their manager
+      const engineeringEmployees = createdUsers.filter(
+        (user) =>
+          user.role === UserRole.EMPLOYEE && user.department === "Engineering"
+      );
+
+      for (const employee of engineeringEmployees) {
+        if (!employee.managerId) {
+          employee.managerId = engineeringManager.id;
+          await userRepository.save(employee);
+          managerAssignments++;
+        }
+      }
+    }
+
+    if (marketingManager) {
+      // Find marketing employees and set their manager
+      const marketingEmployees = createdUsers.filter(
+        (user) =>
+          user.role === UserRole.EMPLOYEE && user.department === "Marketing"
+      );
+
+      for (const employee of marketingEmployees) {
+        if (!employee.managerId) {
+          employee.managerId = marketingManager.id;
+          await userRepository.save(employee);
+          managerAssignments++;
+        }
+      }
+    }
+    
+    if (managerAssignments > 0) {
+      console.log(`Manager relationships: ${managerAssignments} assignments completed`);
+    }
 
     // If the new tables exist and columns exist, set up the relationships
     if (rolesExist && departmentsExist && positionsExist && 
         roleIdExists && departmentIdExists && positionIdExists) {
+      console.log("Setting up user relationships with roles, departments, and positions");
+      
       let relationshipsUpdated = 0;
       let departmentsCreated = 0;
       let positionsCreated = 0;

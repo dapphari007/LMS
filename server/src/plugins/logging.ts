@@ -20,18 +20,33 @@ export const loggingPlugin = {
     // Log all responses
     server.ext("onPreResponse", (request: Request, h) => {
       const response = request.response;
+      let statusCode: number;
+      let errorPayload: any;
+
+      if (response instanceof Boom) {
+        statusCode = response.output?.statusCode || 500;
+        errorPayload = response.output?.payload;
+      } else {
+        statusCode = (response as ResponseObject).statusCode || 200;
+        errorPayload = (response as ResponseObject).source;
+      }
+
       const responseTime = Date.now() - request.info.received;
 
-      const { statusCode, errorPayload } = getResponseDetails(response);
-
-      const logMessage = `Response: ${request.method.toUpperCase()} ${
-        request.path
-      } - Status: ${statusCode} - Time: ${responseTime}ms`;
-
       if (statusCode >= 400) {
-        logger.error(`${logMessage} - Error: ${JSON.stringify(errorPayload)}`);
+        logger.error(
+          `Response: ${request.method.toUpperCase()} ${
+            request.path
+          } - Status: ${statusCode} - Time: ${responseTime}ms - Error: ${JSON.stringify(
+            errorPayload
+          )}`
+        );
       } else {
-        logger.info(logMessage);
+        logger.info(
+          `Response: ${request.method.toUpperCase()} ${
+            request.path
+          } - Status: ${statusCode} - Time: ${responseTime}ms`
+        );
       }
 
       return h.continue;
@@ -50,21 +65,5 @@ export const loggingPlugin = {
         }
       }
     );
-
-    logger.info("Logging plugin registered");
   },
 };
-
-// Helper function to extract response details
-function getResponseDetails(response: any): { statusCode: number; errorPayload: any } {
-  if (response instanceof Boom) {
-    return {
-      statusCode: response.output?.statusCode || 500,
-      errorPayload: response.output?.payload,
-    };
-  }
-  return {
-    statusCode: (response as ResponseObject).statusCode || 200,
-    errorPayload: (response as ResponseObject).source,
-  };
-}

@@ -147,6 +147,8 @@ export interface LeaveRequest {
     deletionRejectedBy?: string;
     deletionRejectedAt?: string;
     deletionRejectionComments?: string;
+    requestUserRole?: string;
+    requestUserRoleId?: string;
   };
   leaveType?: {
     id: string;

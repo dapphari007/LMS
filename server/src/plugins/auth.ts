@@ -8,13 +8,50 @@ interface AuthOptions {
   roles?: UserRole[];
 }
 
+interface JwtPayload {
+  id: string;
+  email: string;
+  role: UserRole;
+  level?: string;
+  permissions?: string[];
+}
+
+interface Credentials extends JwtPayload {}
+
+const hasCustomRolePermission = (
+  userPermissions: string[] | undefined,
+  allowedRoles: UserRole[]
+): boolean => {
+  if (!Array.isArray(userPermissions)) {
+    logger.info(`No user permissions array found`);
+    return false;
+  }
+  
+  logger.info(`Checking custom role permissions - User permissions: ${JSON.stringify(userPermissions)}, Allowed roles: ${JSON.stringify(allowedRoles)}`);
+  
+  const hasHrPermission = allowedRoles.includes(UserRole.HR) && userPermissions.includes("hr");
+  const hasManagerPermission = allowedRoles.includes(UserRole.MANAGER) && userPermissions.includes("manager");
+  const hasTeamLeadPermission = allowedRoles.includes(UserRole.TEAM_LEAD) && userPermissions.includes("team_lead");
+  
+  logger.info(`HR permission: ${hasHrPermission}, Manager permission: ${hasManagerPermission}, Team Lead permission: ${hasTeamLeadPermission}`);
+  
+  return hasHrPermission || hasManagerPermission || hasTeamLeadPermission;
+};
+
+const registerRoleStrategy = (
+  server: Server,
+  name: string,
+  roles: UserRole[]
+) => {
+  server.auth.strategy(name, "role-based", { roles });
+};
+
 export const authPlugin = {
   name: "auth",
   version: "1.0.0",
   register: async function (server: Server) {
     await server.register(jwt);
 
-    // Configure JWT authentication strategy
     server.auth.strategy("jwt", "jwt", {
       keys: config.jwt.secret,
       verify: {
@@ -24,49 +61,59 @@ export const authPlugin = {
         maxAgeSec: 14 * 24 * 60 * 60, // 14 days
       },
       validate: async (artifacts: any) => {
-        const { decoded } = artifacts;
-        const { payload } = decoded;
+        try {
+          const { decoded } = artifacts;
+          const { payload } = decoded as { payload: JwtPayload };
 
-        if (!payload || !payload.id) {
+          if (!payload || !payload.id) {
+            return { isValid: false };
+          }
+
+          return {
+            isValid: true,
+            credentials: {
+              id: payload.id,
+              email: payload.email,
+              role: payload.role,
+              level: payload.level,
+              permissions: payload.permissions,
+            } as Credentials,
+          };
+        } catch (error) {
+          logger.error(`Auth validation error: ${error}`);
           return { isValid: false };
         }
-
-        return {
-          isValid: true,
-          credentials: {
-            id: payload.id,
-            email: payload.email,
-            role: payload.role,
-            level: payload.level,
-          },
-        };
       },
     });
 
     server.auth.default("jwt");
 
-    // Role-based authentication scheme
     server.auth.scheme("role-based", (server, options: AuthOptions) => ({
       authenticate: async (request, h) => {
         try {
           const { credentials } = await server.auth.test("jwt", request);
 
           if (!credentials) {
-            throw new Error("Invalid credentials");
+            return h.unauthenticated(new Error("Invalid credentials"));
           }
 
-          if (options.roles?.length) {
+          if (options.roles && options.roles.length > 0) {
             const userRole = credentials.role as UserRole;
-            const permissions = request.auth?.credentials?.permissions;
+            const userPermissions = Array.isArray(credentials.permissions) ? credentials.permissions : undefined;
+            
+            logger.info(`Auth check - User role: ${userRole}, Required roles: ${JSON.stringify(options.roles)}`);
+            logger.info(`User permissions: ${JSON.stringify(userPermissions)}`);
+            
+            const roleMatch = options.roles.includes(userRole);
+            const permissionMatch = hasCustomRolePermission(userPermissions, options.roles);
+            
+            logger.info(`Role match: ${roleMatch}, Permission match: ${permissionMatch}`);
 
-            const hasCustomPermissions =
-              Array.isArray(permissions) &&
-              options.roles.some((role) =>
-                permissions.includes(role.toLowerCase())
+            if (!roleMatch && !permissionMatch) {
+              logger.error(`Access denied - User role ${userRole} not in allowed roles: ${JSON.stringify(options.roles)}`);
+              return h.unauthenticated(
+                new Error("Insufficient permissions to access this resource")
               );
-
-            if (!options.roles.includes(userRole) && !hasCustomPermissions) {
-              throw new Error("Insufficient permissions to access this resource");
             }
           }
 
@@ -77,35 +124,30 @@ export const authPlugin = {
       },
     }));
 
-    // Helper function to create role-based strategies
-    const createRoleStrategy = (name: string, roles: UserRole[]) => {
-      server.auth.strategy(name, "role-based", { roles });
-    };
-
-    // Define role-based strategies
-    createRoleStrategy("super_admin", [UserRole.SUPER_ADMIN]);
-    createRoleStrategy("manager", [UserRole.SUPER_ADMIN, UserRole.MANAGER]);
-    createRoleStrategy("hr", [UserRole.SUPER_ADMIN, UserRole.HR]);
-    createRoleStrategy("team_lead", [
+    // Register role-based strategies using helper
+    registerRoleStrategy(server, "super_admin", [UserRole.SUPER_ADMIN]);
+    registerRoleStrategy(server, "manager", [UserRole.SUPER_ADMIN, UserRole.MANAGER]);
+    registerRoleStrategy(server, "hr", [UserRole.SUPER_ADMIN, UserRole.HR]);
+    registerRoleStrategy(server, "team_lead", [
       UserRole.SUPER_ADMIN,
       UserRole.MANAGER,
       UserRole.TEAM_LEAD,
     ]);
-    createRoleStrategy("manager_hr", [
-      UserRole.SUPER_ADMIN,
-      UserRole.MANAGER,
-      UserRole.HR,
-      UserRole.TEAM_LEAD,
-    ]);
-    createRoleStrategy("admin", [UserRole.SUPER_ADMIN, UserRole.MANAGER]); // Backward compatibility
-    createRoleStrategy("all_roles", [
+    registerRoleStrategy(server, "employee", [
       UserRole.SUPER_ADMIN,
       UserRole.MANAGER,
       UserRole.HR,
       UserRole.TEAM_LEAD,
       UserRole.EMPLOYEE,
     ]);
-
-    logger.info("Auth plugin registered");
+    // Backward compatibility
+    registerRoleStrategy(server, "admin", [UserRole.SUPER_ADMIN, UserRole.MANAGER]);
+    registerRoleStrategy(server, "all_roles", [
+      UserRole.SUPER_ADMIN,
+      UserRole.MANAGER,
+      UserRole.HR,
+      UserRole.TEAM_LEAD,
+      UserRole.EMPLOYEE,
+    ]);
   },
 };

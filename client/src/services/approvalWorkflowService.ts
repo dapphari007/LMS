@@ -19,6 +19,16 @@ export interface ApprovalWorkflow {
   isActive: boolean;
   categoryId?: string;
   category?: WorkflowCategory;
+  requesterRoleId?: string;
+  requesterRole?: {
+    id: string;
+    name: string;
+    description?: string;
+    isActive: boolean;
+    permissions?: string;
+    isSystem?: boolean;
+    dashboardType?: string;
+  }; // Role object with proper typing
   createdAt: string;
   updatedAt: string;
 }
@@ -172,18 +182,47 @@ export const initializeDefaultWorkflows = async () => {
   }
 };
 
-export const getApprovalWorkflowForDuration = async (days: number) => {
+export const getApprovalWorkflowForDuration = async (days: number, requesterRoleId?: string) => {
   try {
-    console.log(`Fetching approval workflow for duration: ${days} days`);
-    const response = await api.get(`/approval-workflows/for-duration/${days}`);
+    console.log(`Fetching approval workflow for duration: ${days} days${requesterRoleId ? ` and role: ${requesterRoleId}` : ''}`);
+    
+    // Build the URL with query parameters
+    let url = `/approval-workflows/for-duration/${days}`;
+    if (requesterRoleId) {
+      url += `?requesterRoleId=${requesterRoleId}`;
+    }
+    
+    const response = await api.get(url);
     console.log('Approval workflow for duration response:', response.data);
+    
+    // Log the requesterRole information for debugging
+    if (response.data.approvalWorkflow) {
+      console.log('Requester Role in response:', response.data.approvalWorkflow.requesterRole);
+      
+      // Log detailed workflow information for debugging
+      const workflow = response.data.approvalWorkflow;
+      console.log('Workflow details:', {
+        id: workflow.id,
+        name: workflow.name,
+        minDays: workflow.minDays,
+        maxDays: workflow.maxDays,
+        approvalLevels: workflow.approvalLevels?.map((level: ApprovalWorkflow['approvalLevels'][number]) => ({
+          level: level.level,
+          roles: level.roles,
+          approverType: level.approverType
+        })),
+        requesterRoleId: workflow.requesterRoleId,
+        requesterRole: workflow.requesterRole?.name
+      });
+    }
+    
     return response.data.approvalWorkflow;
   } catch (error: any) {
     console.error(`Error fetching approval workflow for duration ${days}:`, error);
     
     // Provide more detailed error messages
     if (error.response?.status === 404) {
-      console.warn(`No approval workflow found for duration: ${days} days`);
+      console.warn(`No approval workflow found for duration: ${days} days${requesterRoleId ? ` and role: ${requesterRoleId}` : ''}`);
       return null;
     } else if (error.response?.data?.message) {
       throw new Error(`Failed to fetch workflow: ${error.response.data.message}`);

@@ -96,10 +96,11 @@ export const createLeaveRequest = async (
         .code(400);
     }
 
-    // Get user
+    // Get user with role information
     const userRepository = AppDataSource.getRepository(User);
     const user = await userRepository.findOne({
       where: { id: userId as string },
+      relations: ["roleObj"], // Include the role object relation
     });
 
     if (!user) {
@@ -262,18 +263,36 @@ export const createLeaveRequest = async (
     
     // Add metadata with user role for approval workflow and set up approval levels
     const metadata: any = {
-      requestUserRole: user.role,
+      requestUserRole: user.role, // Default to the enum value
+      requestUserRoleId: user.roleId, // Add roleId for consistency
       isFullyApproved: false,
       approvalHistory: []
     };
     
+    // If user has a role object, use its name instead of the enum
+    if (user.roleObj && user.roleObj.name) {
+      metadata.requestUserRole = user.roleObj.name;
+      logger.info(`Using role name from user's roleObj: ${user.roleObj.name}`);
+    } else {
+      // Format the role enum value for better display
+      metadata.requestUserRole = user.role;
+      logger.info(`Using role enum value: ${user.role}`);
+    }
+    
     // Get the appropriate approval workflow based on the number of days
     try {
-      // Get the workflow based on the number of days
-      const approvalWorkflow = await leaveRequestService.getApprovalWorkflow(numberOfDays);
+      // Get the workflow based on the number of days and requester's role
+      const approvalWorkflow = await leaveRequestService.getApprovalWorkflow(numberOfDays, user.roleId);
       
       // Set the current approval level to 0 (starting point)
       metadata.currentApprovalLevel = 0;
+      
+      // Store the role information correctly
+      if (approvalWorkflow.requesterRole) {
+        // Use the role name from the workflow's requester role if available
+        metadata.requestUserRole = approvalWorkflow.requesterRole.name;
+        logger.info(`Using role name from approval workflow: ${approvalWorkflow.requesterRole.name}`);
+      }
       
       // Parse the approval levels from the workflow
       let approvalLevels = approvalWorkflow.approvalLevels;
@@ -837,12 +856,27 @@ export const updateLeaveRequestStatus = async (
           }
         );
       } else {
-        // For new approvals, find the workflow based on the number of days
-        applicableWorkflow = approvalWorkflows.find(
-          (workflow) =>
-            leaveRequest.numberOfDays >= workflow.minDays &&
-            leaveRequest.numberOfDays <= workflow.maxDays
-        );
+        // For new approvals, find the workflow based on the number of days and requester's role
+        
+        // First, try to find a role-specific workflow
+        if (requestUser && requestUser.roleId) {
+          applicableWorkflow = approvalWorkflows.find(
+            (workflow) =>
+              leaveRequest.numberOfDays >= workflow.minDays &&
+              leaveRequest.numberOfDays <= workflow.maxDays &&
+              workflow.requesterRoleId === requestUser.roleId
+          );
+        }
+        
+        // If no role-specific workflow found, fall back to the default workflow (no requesterRoleId)
+        if (!applicableWorkflow) {
+          applicableWorkflow = approvalWorkflows.find(
+            (workflow) =>
+              leaveRequest.numberOfDays >= workflow.minDays &&
+              leaveRequest.numberOfDays <= workflow.maxDays &&
+              !workflow.requesterRoleId
+          );
+        }
       }
 
       if (applicableWorkflow) {
@@ -889,55 +923,208 @@ export const updateLeaveRequestStatus = async (
         // Find the current approver's level
         let currentApproverLevel = null;
         
-        // For partially approved requests, we need to check if this approver is for the next level
-        if (leaveRequest.status === LeaveRequestStatus.PARTIALLY_APPROVED && leaveRequest.metadata) {
-          const nextLevel = leaveRequest.metadata.currentApprovalLevel + 1;
+        // Special case: If the approver is the assigned manager, team lead, or HR of the requester, allow them to approve
+        // This handles the case where a manager needs to approve a team lead's request
+        const isAssignedManager = requestUser.managerId === approverId;
+        const isAssignedTeamLead = requestUser.teamLeadId === approverId;
+        const isAssignedHR = requestUser.hrId === approverId;
+        const isSuperAdmin = approver.role === UserRole.SUPER_ADMIN;
+        
+        if (isAssignedManager || isAssignedTeamLead || isAssignedHR || isSuperAdmin) {
+          if (isAssignedManager) {
+            logger.info(`Approver ${approverId} is the assigned manager of user ${leaveRequest.userId} - allowing approval`);
+          } else if (isAssignedTeamLead) {
+            logger.info(`Approver ${approverId} is the assigned team lead of user ${leaveRequest.userId} - allowing approval`);
+          } else if (isAssignedHR) {
+            logger.info(`Approver ${approverId} is the assigned HR of user ${leaveRequest.userId} - allowing approval`);
+          } else if (isSuperAdmin) {
+            logger.info(`Approver ${approverId} is a Super Admin - allowing approval`);
+          }
           
-          // Find the level definition for the next level
-          const nextLevelDefinition = sortedLevels.find(l => l.level === nextLevel);
+          // For new requests, set to level 1 (or the first level)
+          if (leaveRequest.status === LeaveRequestStatus.PENDING) {
+            currentApproverLevel = sortedLevels[0].level;
+            logger.info(`Setting currentApproverLevel to ${currentApproverLevel} for approval of new request`);
+          } 
+          // For partially approved requests, set to the next level
+          else if (leaveRequest.status === LeaveRequestStatus.PARTIALLY_APPROVED && leaveRequest.metadata) {
+            currentApproverLevel = leaveRequest.metadata.currentApprovalLevel + 1;
+            logger.info(`Setting currentApproverLevel to ${currentApproverLevel} for approval of partially approved request`);
+          }
+        } 
+        // Special case for managers in the same department
+        else if (approver.role === UserRole.MANAGER && approver.department === requestUser.department) {
+          logger.info(`Approver ${approverId} is a manager in the same department as user ${leaveRequest.userId} - checking workflow`);
           
-          if (nextLevelDefinition) {
-            // Check if this approver matches the next level
-            if (nextLevelDefinition.roleIds && nextLevelDefinition.roleIds.length > 0) {
-              // Check if the current approver has one of the required roles for this level
-              if (approver.roleId && nextLevelDefinition.roleIds.includes(approver.roleId)) {
-                currentApproverLevel = nextLevel;
-              }
+          // Find the manager level (usually level 2)
+          const managerLevel = sortedLevels.find(level => {
+            if (level.roleIds && level.roleIds.length > 0) {
+              // Try to find a role that matches manager
+              return level.roleIds.includes(approver.roleId);
+            } else if (level.roles) {
+              // Legacy format
+              const roles = Array.isArray(level.roles) ? level.roles : [level.roles];
+              return roles.includes(UserRole.MANAGER);
+            }
+            return false;
+          });
+          
+          if (managerLevel) {
+            logger.info(`Found manager level: ${managerLevel.level}`);
+            
+            // For new requests, if this is level 2 or higher, we need to auto-approve level 1 first
+            if (leaveRequest.status === LeaveRequestStatus.PENDING && managerLevel.level > 1) {
+              // Set to level 1 to auto-approve the first level
+              currentApproverLevel = 1;
+              logger.info(`Manager is approving a new request - auto-approving level 1`);
             } else {
-              // Legacy format - check by role
-              const roles = Array.isArray(nextLevelDefinition.roles)
-                ? nextLevelDefinition.roles
-                : [nextLevelDefinition.roles];
-              if (roles.includes(approver.role)) {
-                currentApproverLevel = nextLevel;
-              }
+              currentApproverLevel = managerLevel.level;
             }
           }
-        } else {
-          // Regular approval flow - no special cases
-          // For new approvals, check all levels
-          for (const level of sortedLevels) {
-            // Check if this is a new format level with roleIds
+        }
+        // Special case for HR in the same department
+        else if (approver.role === UserRole.HR && approver.department === requestUser.department) {
+          logger.info(`Approver ${approverId} is an HR in the same department as user ${leaveRequest.userId} - checking workflow`);
+          
+          // Find the HR level (usually level 3)
+          const hrLevel = sortedLevels.find(level => {
             if (level.roleIds && level.roleIds.length > 0) {
-              // Check if the current approver has one of the required roles for this level
-              if (approver.roleId && level.roleIds.includes(approver.roleId)) {
-                currentApproverLevel = level.level;
-                break;
-              }
+              // Try to find a role that matches HR
+              return level.roleIds.includes(approver.roleId);
+            } else if (level.roles) {
+              // Legacy format
+              const roles = Array.isArray(level.roles) ? level.roles : [level.roles];
+              return roles.includes(UserRole.HR);
+            }
+            return false;
+          });
+          
+          if (hrLevel) {
+            logger.info(`Found HR level: ${hrLevel.level}`);
+            
+            // For new requests, if this is level 2 or higher, we need to auto-approve previous levels
+            if (leaveRequest.status === LeaveRequestStatus.PENDING && hrLevel.level > 1) {
+              // Set to level 1 to start the approval process
+              currentApproverLevel = 1;
+              logger.info(`HR is approving a new request - auto-approving from level 1`);
+            } else if (leaveRequest.status === LeaveRequestStatus.PARTIALLY_APPROVED && leaveRequest.metadata) {
+              // For partially approved requests, continue from the current level
+              currentApproverLevel = leaveRequest.metadata.currentApprovalLevel + 1;
+              logger.info(`HR is approving a partially approved request - continuing from level ${currentApproverLevel}`);
             } else {
-              // Legacy format - check by role
-              const roles = Array.isArray(level.roles)
-                ? level.roles
-                : [level.roles];
-              if (roles.includes(approver.role)) {
-                currentApproverLevel = level.level;
-                break;
+              currentApproverLevel = hrLevel.level;
+            }
+          }
+        }
+        // Special case for team leads in the same department
+        else if (approver.role === UserRole.TEAM_LEAD && approver.department === requestUser.department && requestUser.role !== UserRole.TEAM_LEAD) {
+          logger.info(`Approver ${approverId} is a team lead in the same department as user ${leaveRequest.userId} - checking workflow`);
+          
+          // Find the team lead level (usually level 1)
+          const teamLeadLevel = sortedLevels.find(level => {
+            if (level.roleIds && level.roleIds.length > 0) {
+              // Try to find a role that matches team lead
+              return level.roleIds.includes(approver.roleId);
+            } else if (level.roles) {
+              // Legacy format
+              const roles = Array.isArray(level.roles) ? level.roles : [level.roles];
+              return roles.includes(UserRole.TEAM_LEAD);
+            }
+            return false;
+          });
+          
+          if (teamLeadLevel) {
+            logger.info(`Found team lead level: ${teamLeadLevel.level}`);
+            currentApproverLevel = teamLeadLevel.level;
+          }
+        }
+        // Special case for Super Admins
+        else if (approver.role === UserRole.SUPER_ADMIN) {
+          logger.info(`Approver ${approverId} is a Super Admin - allowing approval at any level`);
+          
+          // For new requests, Super Admins can approve at the highest level directly
+          if (leaveRequest.status === LeaveRequestStatus.PENDING) {
+            // Set to level 1 to start the approval process from the beginning
+            currentApproverLevel = 1;
+            logger.info(`Super Admin is approving a new request - starting from level 1`);
+          } else if (leaveRequest.status === LeaveRequestStatus.PARTIALLY_APPROVED && leaveRequest.metadata) {
+            // For partially approved requests, continue from the current level
+            currentApproverLevel = leaveRequest.metadata.currentApprovalLevel + 1;
+            logger.info(`Super Admin is approving a partially approved request - continuing from level ${currentApproverLevel}`);
+          }
+        }
+        // Regular workflow-based approval
+        else {
+          // For partially approved requests, we need to check if this approver is for the next level
+          if (leaveRequest.status === LeaveRequestStatus.PARTIALLY_APPROVED && leaveRequest.metadata) {
+            const nextLevel = leaveRequest.metadata.currentApprovalLevel + 1;
+            
+            // Find the level definition for the next level
+            const nextLevelDefinition = sortedLevels.find(l => l.level === nextLevel);
+            
+            if (nextLevelDefinition) {
+              // Check if this approver matches the next level
+              if (nextLevelDefinition.roleIds && nextLevelDefinition.roleIds.length > 0) {
+                // Check if the current approver has one of the required roles for this level
+                if (approver.roleId && nextLevelDefinition.roleIds.includes(approver.roleId)) {
+                  currentApproverLevel = nextLevel;
+                  logger.info(`Approver ${approver.id} (${approver.firstName} ${approver.lastName}) with roleId ${approver.roleId} matches next level ${nextLevel} with roleIds ${JSON.stringify(nextLevelDefinition.roleIds)}`);
+                } else {
+                  logger.info(`Approver ${approver.id} (${approver.firstName} ${approver.lastName}) with roleId ${approver.roleId} does NOT match next level ${nextLevel} with roleIds ${JSON.stringify(nextLevelDefinition.roleIds)}`);
+                }
+              } else {
+                // Legacy format - check by role
+                const roles = Array.isArray(nextLevelDefinition.roles)
+                  ? nextLevelDefinition.roles
+                  : [nextLevelDefinition.roles];
+                if (roles.includes(approver.role)) {
+                  currentApproverLevel = nextLevel;
+                  logger.info(`Approver ${approver.id} (${approver.firstName} ${approver.lastName}) with role ${approver.role} matches next level ${nextLevel} with roles ${JSON.stringify(roles)}`);
+                } else {
+                  logger.info(`Approver ${approver.id} (${approver.firstName} ${approver.lastName}) with role ${approver.role} does NOT match next level ${nextLevel} with roles ${JSON.stringify(roles)}`);
+                }
+              }
+            }
+          } else {
+            // Regular approval flow - no special cases
+            // For new approvals, check all levels
+            for (const level of sortedLevels) {
+              // Check if this is a new format level with roleIds
+              if (level.roleIds && level.roleIds.length > 0) {
+                // Check if the current approver has one of the required roles for this level
+                if (approver.roleId && level.roleIds.includes(approver.roleId)) {
+                  currentApproverLevel = level.level;
+                  logger.info(`Approver ${approver.id} (${approver.firstName} ${approver.lastName}) with roleId ${approver.roleId} matches level ${level.level} with roleIds ${JSON.stringify(level.roleIds)}`);
+                  break;
+                } else {
+                  logger.info(`Approver ${approver.id} (${approver.firstName} ${approver.lastName}) with roleId ${approver.roleId} does NOT match level ${level.level} with roleIds ${JSON.stringify(level.roleIds)}`);
+                }
+              } else {
+                // Legacy format - check by role
+                const roles = Array.isArray(level.roles)
+                  ? level.roles
+                  : [level.roles];
+                if (roles.includes(approver.role)) {
+                  currentApproverLevel = level.level;
+                  logger.info(`Approver ${approver.id} (${approver.firstName} ${approver.lastName}) with role ${approver.role} matches level ${level.level} with roles ${JSON.stringify(roles)}`);
+                  break;
+                } else {
+                  logger.info(`Approver ${approver.id} (${approver.firstName} ${approver.lastName}) with role ${approver.role} does NOT match level ${level.level} with roles ${JSON.stringify(roles)}`);
+                }
               }
             }
           }
         }
 
         if (currentApproverLevel === null) {
+          // Log detailed information about the approver and the workflow for debugging
+          logger.error(`Approver ${approverId} (${approver.firstName} ${approver.lastName}, role: ${approver.role}, roleId: ${approver.roleId}) does not match any approval level for leave request ${leaveRequest.id}`);
+          logger.error(`Workflow levels: ${JSON.stringify(sortedLevels.map(l => ({ 
+            level: l.level, 
+            roleIds: l.roleIds, 
+            roles: l.roles 
+          })))}`);
+          
           return h
             .response({
               message:
@@ -946,10 +1133,63 @@ export const updateLeaveRequestStatus = async (
             .code(403);
         }
 
+        // Check if this approver has already approved this request
+        if (leaveRequest.metadata && leaveRequest.metadata.approvalHistory) {
+          const previousApproval = leaveRequest.metadata.approvalHistory.find(
+            (approval: any) => approval.approverId === approverId
+          );
+          
+          if (previousApproval) {
+            logger.info(`Approver ${approverId} has already approved this request at level ${previousApproval.level} on ${new Date(previousApproval.approvedAt).toISOString()}`);
+            
+            // If the approver is a manager, HR, or super admin, allow them to approve at a higher level
+            if (approver.role === UserRole.MANAGER || approver.role === UserRole.HR || approver.role === UserRole.SUPER_ADMIN) {
+              // Check if they're trying to approve at a higher level than before
+              if (currentApproverLevel > previousApproval.level) {
+                logger.info(`Allowing ${approver.role} to approve at a higher level (${currentApproverLevel} > ${previousApproval.level})`);
+              } else {
+                return h
+                  .response({
+                    message: `You have already approved this leave request at level ${previousApproval.level}`,
+                  })
+                  .code(400);
+              }
+            } else {
+              return h
+                .response({
+                  message: "You have already approved this leave request",
+                })
+                .code(400);
+            }
+          }
+        }
+
         // Check if this is the highest level required for this leave request
         const highestRequiredLevel =
           sortedLevels[sortedLevels.length - 1].level;
 
+        // For partially approved requests, make sure we're approving at the correct next level
+        if (leaveRequest.status === LeaveRequestStatus.PARTIALLY_APPROVED && 
+            leaveRequest.metadata && 
+            leaveRequest.metadata.currentApprovalLevel && 
+            currentApproverLevel > leaveRequest.metadata.currentApprovalLevel + 1) {
+          
+          // The approver is trying to approve at a level that's not the next one in sequence
+          const nextExpectedLevel = leaveRequest.metadata.currentApprovalLevel + 1;
+          
+          logger.warn(`Approver ${approverId} is trying to approve at level ${currentApproverLevel} but the next expected level is ${nextExpectedLevel}`);
+          
+          // If the approver is a super admin, allow them to skip levels
+          if (approver.role === UserRole.SUPER_ADMIN) {
+            logger.info(`Allowing Super Admin to skip approval levels`);
+            // Continue with the approval
+          } else {
+            // For other roles, enforce the approval sequence
+            currentApproverLevel = nextExpectedLevel;
+            logger.info(`Adjusting approval level to the next expected level: ${nextExpectedLevel}`);
+          }
+        }
+        
         // If this is not the highest level required, mark as "pending_next_approval" instead of fully approved
         if (currentApproverLevel < highestRequiredLevel) {
           // Store the current approval level in the comments for tracking

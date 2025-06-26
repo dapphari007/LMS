@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getLeaveTypes } from "../../services/leaveTypeService";
 import { createLeaveRequest } from "../../services/leaveRequestService";
 import { getHolidays } from "../../services/holidayService";
-import { CreateLeaveRequestData, LeaveBalance } from "../../types";
+import { getApprovalWorkflowForDuration } from "../../services/approvalWorkflowService";
+import { CreateLeaveRequestData, LeaveBalance, LeaveType } from "../../types";
 import Card from "../../components/ui/Card";
 import Select from "../../components/ui/Select";
 import DatePicker from "../../components/ui/DatePicker";
@@ -16,6 +17,7 @@ import { getErrorMessage } from "../../utils/errorUtils";
 import { calculateBusinessDays, checkForHolidaysInRange } from "../../utils/dateUtils";
 import { useMyLeaveBalances } from "../../hooks/useLeaveBalances";
 import ApprovalWorkflowPreview from "../../components/leaves/ApprovalWorkflowPreview";
+import { useAuth } from "../../context/AuthContext";
 
 // Helper function to calculate remaining days consistently
 const calculateRemainingDays = (leaveBalance: LeaveBalance) => {
@@ -45,7 +47,13 @@ const ApplyLeavePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [applicableLeaveTypes, setApplicableLeaveTypes] = useState<LeaveType[]>([]);
+  const [currentWorkflow, setCurrentWorkflow] = useState<any>(null);
   const navigate = useNavigate();
+  
+  // Get user information from AuthContext
+  const { user } = useAuth();
+  const userRoleId = user?.roleId;
 
   // Watch form values for calculations
   const startDate = watch("startDate");
@@ -121,6 +129,85 @@ const ApplyLeavePage: React.FC = () => {
   };
 
   const duration = calculateDuration();
+  
+  // Fetch the approval workflow based on duration and user role
+  const { 
+    data: workflowData,
+    isLoading: isLoadingWorkflow,
+    error: workflowError
+  } = useQuery({
+    queryKey: ['approvalWorkflow', duration, userRoleId, user?.role],
+    queryFn: async () => {
+      if (duration <= 0) return null;
+      
+      try {
+        // Fetch workflow based on duration and user role
+        // We log the user's role information for debugging
+        console.log('Fetching workflow for user:', { 
+          roleId: userRoleId, 
+          roleName: user?.role,
+          duration: duration
+        });
+        
+        const workflow = await getApprovalWorkflowForDuration(duration, userRoleId);
+        console.log('Fetched workflow for role-based filtering:', workflow);
+        
+        if (workflow) {
+          console.log('Workflow found for duration and role:', {
+            workflowName: workflow.name,
+            minDays: workflow.minDays,
+            maxDays: workflow.maxDays,
+            approvalLevels: workflow.approvalLevels?.length || 0,
+            requesterRole: workflow.requesterRole?.name || 'Not specified'
+          });
+          setCurrentWorkflow(workflow);
+        } else {
+          console.warn('No workflow found for duration and role:', {
+            duration,
+            roleId: userRoleId,
+            roleName: user?.role
+          });
+          setCurrentWorkflow(null);
+        }
+        
+        return workflow;
+      } catch (error) {
+        console.error('Error fetching workflow for leave type filtering:', error);
+        setCurrentWorkflow(null);
+        return null;
+      }
+    },
+    enabled: !!duration && duration > 0 && (!!userRoleId || !!user?.role),
+  });
+  
+  // Handle workflow error
+  React.useEffect(() => {
+    if (workflowError) {
+      setError(getErrorMessage(workflowError));
+    }
+  }, [workflowError]);
+
+  // Filter leave types based on the applicable workflow
+  useEffect(() => {
+    if (!leaveTypesData?.leaveTypes || !workflowData) {
+      // If no workflow data is available yet, show all leave types
+      if (leaveTypesData?.leaveTypes) {
+        setApplicableLeaveTypes(leaveTypesData.leaveTypes);
+      }
+      return;
+    }
+    
+    // If we have a specific workflow for this duration and role, we can filter leave types
+    // For now, we don't have specific leave type restrictions in the workflow,
+    // so we'll show all active leave types when a valid workflow is found
+    
+    // In a real implementation, you might have additional filtering logic here
+    // based on workflow properties or other business rules
+    
+    console.log('Setting applicable leave types based on workflow:', workflowData);
+    setApplicableLeaveTypes(leaveTypesData.leaveTypes);
+    
+  }, [leaveTypesData, workflowData]);
 
   // Check if requested leave exceeds available balance or falls on holidays
   useEffect(() => {
@@ -288,19 +375,21 @@ const ApplyLeavePage: React.FC = () => {
                 label="Leave Type"
                 error={errors.leaveTypeId?.message}
                 options={
-                  leaveTypesData && leaveTypesData.leaveTypes
-                    ? leaveTypesData.leaveTypes.map((type) => ({
+                  applicableLeaveTypes.length > 0
+                    ? applicableLeaveTypes.map((type) => ({
                         value: type.id,
                         label: type.name,
                       }))
                     : []
                 }
                 placeholder={
-                  isLoadingLeaveTypes
-                    ? "Loading leave types..."
+                  isLoadingLeaveTypes || isLoadingWorkflow
+                    ? "Loading applicable leave types..."
+                    : applicableLeaveTypes.length === 0 && duration > 0
+                    ? "No applicable leave types for this duration"
                     : "Select leave type"
                 }
-                disabled={isLoadingLeaveTypes}
+                disabled={isLoadingLeaveTypes || isLoadingWorkflow || (applicableLeaveTypes.length === 0 && duration > 0)}
                 {...register("leaveTypeId", {
                   required: "Leave type is required",
                 })}
@@ -396,7 +485,8 @@ const ApplyLeavePage: React.FC = () => {
             {startDate && endDate && duration > 0 && !warning && (
               <ApprovalWorkflowPreview 
                 duration={duration} 
-                isLoading={isLoading || isLoadingLeaveTypes || isLoadingHolidays}
+                isLoading={isLoading || isLoadingLeaveTypes || isLoadingHolidays || isLoadingWorkflow}
+                workflow={currentWorkflow} // Pass the current workflow directly
               />
             )}
 

@@ -33,7 +33,14 @@ export const initializeWorkflows = async (): Promise<void> => {
           workflow.name = workflowConfig.name;
           workflow.minDays = workflowConfig.minDays;
           workflow.maxDays = workflowConfig.maxDays;
-          workflow.approvalLevels = workflowConfig.approvalLevels;
+          
+          // Modify approval levels to remove department-specific settings
+          const updatedLevels = workflowConfig.approvalLevels.map(level => ({
+            ...level,
+            departmentSpecific: false // Override to false regardless of what's in the config
+          }));
+          
+          workflow.approvalLevels = updatedLevels;
           workflow.isActive = true;
           
           await workflowRepository.save(workflow);
