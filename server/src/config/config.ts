@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import path from 'path';
+import path from 'node:path';
 
 // Load environment variables from .env file
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -47,13 +47,13 @@ const config: Config = {
   // },
 
   server: {
-    port: parseInt(process.env.PORT, 10),
+    port: Number.parseInt(process.env.PORT, 10),
     host: process.env.HOST,
     nodeEnv: process.env.NODE_ENV,
   },
   database: {
     host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT, 10),
+    port: Number.parseInt(process.env.DB_PORT, 10),
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
@@ -66,7 +66,7 @@ const config: Config = {
   },
   email: {
     host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT),
+    port: Number.parseInt(process.env.EMAIL_PORT, 10),
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
     from: process.env.EMAIL_FROM,

@@ -42,3 +42,9 @@ lerna-debug.log*
 # Database
 *.sqlite
 *.db
+
+# Prisma generated files (auto-generated, should not be committed)
+src/generated/
+
+# Temporary SQL files
+*.sql

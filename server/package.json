@@ -15,6 +15,7 @@
     "migration:revert": "npm run typeorm migration:revert",
     "run:migrations": "ts-node src/scripts/runMigrations.ts",
     "db:repair": "ts-node src/scripts/fix-migrations.ts && npm run run:migrations",
+    "db:setup": "ts-node src/scripts/ensureDatabase.ts",
     "ensure:default-users": "ts-node -e \"require('./src/utils/ensure-default-users').ensureDefaultUsers().then(() => console.log('Default users check completed')).catch((err) => { console.error(err); process.exit(1); })\"",
     "create:test-user": "ts-node src/scripts/createTestUser.ts",
     "create:default-roles": "ts-node src/scripts/createDefaultRoles.ts",

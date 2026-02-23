@@ -145,15 +145,16 @@ model positions {
 }
 
 model roles {
-  id          String   @id(map: "PK_roles") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name        String   @unique(map: "UQ_roles_name") @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  isActive    Boolean  @default(true)
-  permissions String?
-  isSystem    Boolean  @default(false)
-  createdAt   DateTime @default(now()) @db.Timestamp(6)
-  updatedAt   DateTime @default(now()) @db.Timestamp(6)
-  users       users[]
+  id            String          @id(map: "PK_roles") @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name          String          @unique(map: "UQ_roles_name") @db.VarChar(100)
+  description   String?         @db.VarChar(255)
+  isActive      Boolean         @default(true)
+  permissions   String?
+  isSystem      Boolean         @default(false)
+  dashboardType dashboard_enum? @default(employee)
+  createdAt     DateTime        @default(now()) @db.Timestamp(6)
+  updatedAt     DateTime        @default(now()) @db.Timestamp(6)
+  users         users[]
 }
 
 model users {
@@ -165,7 +166,7 @@ model users {
   phoneNumber                                     String?          @db.VarChar
   address                                         String?          @db.VarChar
   role                                            user_role_enum   @default(employee)
-  level                                           user_level_enum  @default(dbgenerated("1"))
+  level                                           user_level_enum  @default(level1)
   gender                                          gender_enum?
   managerId                                       String?          @db.Uuid
   department                                      String?          @db.VarChar(100)
@@ -230,4 +231,12 @@ enum user_role_enum {
   manager
   team_lead
   employee
+}
+
+enum dashboard_enum {
+  employee
+  manager
+  hr
+  admin
+  super_admin
 }

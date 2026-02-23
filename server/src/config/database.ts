@@ -1,6 +1,6 @@
 import { DataSource } from "typeorm";
 import config from "./config";
-import path from "path";
+import path from "node:path";
 
 // Use environment variables for database connection
 export const AppDataSource = new DataSource({

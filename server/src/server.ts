@@ -13,6 +13,7 @@ import { createCustomRole } from "./scripts/manageRoles";
 import { syncEssentialData } from "./scripts/syncEssentialData";
 import { checkEssentialData } from "./scripts/checkEssentialData";
 import { initializeSystem } from "./scripts/initializeSystem";
+import { ensureDatabase } from "./scripts/ensureDatabase";
 
 // Utility: Check if tables exist
 const tablesExist = async (tableNames: string[]): Promise<boolean> => {
@@ -70,6 +71,11 @@ const gracefulShutdown = async (server: Hapi.Server, dbHealthCheck: NodeJS.Timeo
 
 const init = async () => {
   try {
+    // Ensure database exists and has necessary extensions
+    logger.info("Checking database setup...");
+    await ensureDatabase();
+    logger.info("Database setup verified");
+
     let retries = 3;
     while (retries > 0) {
       try {
